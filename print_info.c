@@ -10,12 +10,13 @@
 
 int main(int argc, char *argv[], char *envp[])
 {
-    int tmp_file_des;
+    int tmp_file_des, stdout_copy;
     struct stat file_stat;
     pid_t pid;
-    
-    tmp_file_des = open("file_type.txt", O_RDWR | O_CREAT, 0750);
-    int stdout_copy = dup(STDOUT_FILENO);
+    char tmp_file_name[] = "file_type.txt";
+
+    tmp_file_des = open(tmp_file_name, O_WRONLY | O_CREAT, 0750);
+    stdout_copy = dup(STDOUT_FILENO);
     dup2(tmp_file_des, STDOUT_FILENO);
 
     pid = fork();
@@ -28,14 +29,15 @@ int main(int argc, char *argv[], char *envp[])
         wait(NULL);
         dup2(stdout_copy, STDOUT_FILENO);
         close(stdout_copy);
+        close(tmp_file_des);
     }
 
+    tmp_file_des = open(tmp_file_name, O_RDONLY);
     char ch;
     char file_type[25];
     int i = 0;
     bool reading_file_type = false;
     while( read(tmp_file_des, &ch, 1) == 1) {
-        printf("1");
         if (ch == '\n' || ch == ',' || ch == 0x0) {
             file_type[i] = '\0';
             reading_file_type = false;
@@ -52,8 +54,11 @@ int main(int argc, char *argv[], char *envp[])
         }
     }
 
-    printf("%s,", argv[1]); //File name
-    //printf("%s,", file_type); //File type
+    close(tmp_file_des);
+    unlink(tmp_file_name);
+
+    write(STDOUT_FILENO, argv[argc - 1], strlen(argv[argc - 1])); //File name
+    printf("%s,", file_type); //File type
 
     stat(argv[1], &file_stat);
     printf("%d,", (int) file_stat.st_size); //Size
@@ -68,7 +73,7 @@ int main(int argc, char *argv[], char *envp[])
     file_access[j] = '\0';
     printf("%s", file_access);
 
-    printf("%s,", ctime(&file_stat.st_ctime));//File created time??
+    printf("%s,", ctime(&file_stat.st_ctime));//File changes permissions time
     printf("%s,", ctime(&file_stat.st_mtime));//File modified time
 
     exit(0);

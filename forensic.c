@@ -6,8 +6,10 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <time.h>
+#include <string.h>
 
 int is_directory(const char *path);
+int check_command(int argc, char *argv[], char command[]); 
 
 int main(int argc, char *argv[], char *envp[])
 {
@@ -16,12 +18,25 @@ int main(int argc, char *argv[], char *envp[])
     struct stat file_stat;
 
     if (argc < 2 || argc > 9) {
-        printf("usage: %s dirname\n", argv[0]);
+        perror("Wrong number of possible arguments.");
         exit(1);
     }
 
+    int output_command_index = check_command(argc, argv, "-o");
+    if(output_command_index != -1)
+    {
+        char output_file_name[20];
+        int output_file_des, stdout_copy;
+
+        strcpy(output_file_name, argv[output_command_index + 1]);
+        output_file_des = open(output_file_name, O_WRONLY | O_CREAT, 0750);
+
+        stdout_copy = dup(STDOUT_FILENO);
+        dup2(output_file_des, STDOUT_FILENO);
+    }
+
     if(!is_directory(argv[argc - 1])) {
-        if( (file_des = open(argv[argc - 1], O_RDONLY) == -1) )  {
+        if( ( file_des = open(argv[argc - 1], O_RDONLY) ) == -1 )  {
             perror("File does not exist.");
             exit(1);
         }
@@ -37,6 +52,17 @@ int main(int argc, char *argv[], char *envp[])
             exit(0);
         }
     }
+}
+
+int check_command(int argc, char *argv[], char command[]) 
+{
+    for(int i = 1; i < argc; i++)
+    {
+        if(!strcmp(command, argv[i]))
+            return i;
+    }
+
+    return -1;
 }
 
 int is_directory(const char *path)
