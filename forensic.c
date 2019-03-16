@@ -44,7 +44,7 @@ int main(int argc, char *argv[], char *envp[])
         pid = fork();
         if(pid == 0)  {//Child
             execlp("./print_info", "./print_info", argv[argc - 1], NULL);
-            perror("Error!");
+            perror("Error - print_info!");
             exit(1);
         }
         else { //Parent
