@@ -43,8 +43,14 @@ int main(int argc, char *argv[], char *envp[])
 
         pid = fork();
         if(pid == 0)  {//Child
-            execlp("./print_info", "./print_info", argv[argc - 1], NULL);
-            perror("Error - print_info!");
+
+            int hash_command_index = check_command(argc, argv, "-h");
+            if(hash_command_index != -1)
+                execlp("./print_info", "./print_info", argv[argc - 1], argv[hash_command_index + 1], NULL);
+            else 
+                execlp("./print_info", "./print_info", argv[argc - 1], NULL);
+
+            perror("Error: print_info!");
             exit(1);
         }
         else { //Parent

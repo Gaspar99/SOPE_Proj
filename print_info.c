@@ -11,6 +11,7 @@
 
 int get_file_type(char* file_name, char* file_type);
 int format_date(time_t time, char* formated_date);
+int get_hash_codes(char* file, char* hash_commands, char **hash_codes);
 
 int main(int argc, char *argv[], char *envp[])
 {
@@ -54,6 +55,20 @@ int main(int argc, char *argv[], char *envp[])
     char file_modified_time[30];
     format_date(file_stat.st_mtime, file_modified_time);
     write(STDOUT_FILENO, file_modified_time, strlen(file_modified_time));
+
+    //Hash functions
+    if(argc == 3)
+    {
+        char** hash_codes;
+        hash_codes = (char**) malloc(sizeof(char) * 3);
+        for(int i = 0; i < 3; i++)
+            hash_codes[i] = (char*) malloc(sizeof(char) * 80);
+
+        int functions = get_hash_codes(argv[1], argv[2], hash_codes);
+
+        for(int i = 0; i < functions; i++)
+            write(STDOUT_FILENO, hash_codes[i], strlen(hash_codes[i]));
+    }
 
     write(STDOUT_FILENO, "\n", 1);
     exit(0);
@@ -141,8 +156,8 @@ int format_date(time_t time, char* formated_date)
     strcat(formated_date, month);
     strcat(formated_date, "-");
     strcat(formated_date, day);
-    strcat(formated_date, "T");
 
+    strcat(formated_date, "T");
     strcat(formated_date, hour);
     strcat(formated_date, ":");
     strcat(formated_date, min);
@@ -151,4 +166,104 @@ int format_date(time_t time, char* formated_date)
 
     return 0;
 }
+
+int get_hash_codes(char *file, char* hash_commands, char** hash_codes)
+{
+    pid_t pid;
+    int tmp_file_des, stdout_copy;
+    char tmp_file_name[] = "hash_codes.txt";
+
+    char hash_functions[3][8];
+    int functions = 0;
+    int j = 0;
+    for(int i = 0; hash_commands[i] != '\0'; i++, j++)
+    {
+        if(hash_commands[i] == ',')
+        {
+            hash_functions[functions][j] = '\0';
+            functions++;
+            j = -1;
+        }
+        else {
+            hash_functions[functions][j] = hash_commands[i];
+        }
+    }
+
+    hash_functions[functions][j] = '\0';
+    functions++;
+
+    tmp_file_des = open(tmp_file_name, O_RDWR | O_CREAT, 0750);
+    stdout_copy = dup(STDOUT_FILENO);
+    dup2(tmp_file_des, STDOUT_FILENO);
+
+    for(int i = 0; i < functions; i++)
+    {
+        pid = fork();
+        if( pid == 0)
+        {
+            strcat(hash_functions[i], "sum");
+            execlp(hash_functions[i], hash_functions[i], file, NULL);
+            perror("Error executing hash command.");
+            exit(1);
+        }
+        else {
+            wait(NULL);
+            /*j = 0;
+            while(read(tmp_file_des, &ch, 1) == 1)
+            {
+                if(ch == ' ')
+                    break;
+                else {
+                    if(j == 0)
+                    {
+                        hashes[functions] = (char*) malloc(sizeof(char) * 80);
+                        hashes[functions][j] = ',';
+                        j++;
+                    }
+                    hashes[functions][j] = ch;
+                    j++;
+                }
+            }*/
+        }
+    }
+
+    dup2(stdout_copy, STDOUT_FILENO);
+    close(stdout_copy);
+    close(tmp_file_des);
+
+    tmp_file_des = open(tmp_file_name, O_RDONLY);
+    char ch;
+    int i = 0, code = 0;
+    bool reading_hash = true;
+
+    while( read(tmp_file_des, &ch, 1) == 1) {
+        if(ch == ' ') {
+            reading_hash = false;
+            hash_codes[code][i] = '\0';
+        }
+        else if(ch == '\n') {
+            reading_hash = true;
+            i = 0;
+            code++;
+        }
+
+        else if(reading_hash)
+        {
+            if(i == 0) {
+                hash_codes[code][i] = ',';
+                i++;
+            }
+            hash_codes[code][i] = ch;
+            i++;
+        }
+    }
+    
+    close(tmp_file_des);
+    unlink(tmp_file_name);
+
+    return functions;
+
+}
+
+
 
