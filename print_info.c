@@ -1,33 +1,18 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <time.h>
-#include <stdbool.h>
-#include <string.h>
+#include "print_info.h"
 
-int get_file_type(char* file_name, char* file_type);
-int format_date(time_t time, char* formated_date);
-int get_hash_codes(char* file, char* hash_commands, char **hash_codes);
-
-int main(int argc, char *argv[], char *envp[])
+int print(char* file_name, char* hash_commands, int log_file_des)
 {
     struct stat file_stat;
 
     //File name
-    char file_name[25];
-    strcpy(file_name, argv[1]);
     write(STDOUT_FILENO, file_name, strlen(file_name)); //File name
 
     //File type
     char file_type[20];
-    get_file_type(argv[1], file_type);
+    get_file_type(file_name, file_type);
     write(STDOUT_FILENO, file_type, strlen(file_type)); 
 
-    stat(argv[1], &file_stat);
+    stat(file_name, &file_stat);
 
     //File size
     char file_size[11] = ",";
@@ -57,14 +42,14 @@ int main(int argc, char *argv[], char *envp[])
     write(STDOUT_FILENO, file_modified_time, strlen(file_modified_time));
 
     //Hash functions
-    if(argc == 3)
+    if(hash_commands != NULL)
     {
         char** hash_codes;
         hash_codes = (char**) malloc(sizeof(char) * 3);
         for(int i = 0; i < 3; i++)
             hash_codes[i] = (char*) malloc(sizeof(char) * 80);
 
-        int functions = get_hash_codes(argv[1], argv[2], hash_codes);
+        int functions = get_hash_codes(file_name, hash_commands, hash_codes);
 
         for(int i = 0; i < functions; i++)
             write(STDOUT_FILENO, hash_codes[i], strlen(hash_codes[i]));
@@ -208,22 +193,6 @@ int get_hash_codes(char *file, char* hash_commands, char** hash_codes)
         }
         else {
             wait(NULL);
-            /*j = 0;
-            while(read(tmp_file_des, &ch, 1) == 1)
-            {
-                if(ch == ' ')
-                    break;
-                else {
-                    if(j == 0)
-                    {
-                        hashes[functions] = (char*) malloc(sizeof(char) * 80);
-                        hashes[functions][j] = ',';
-                        j++;
-                    }
-                    hashes[functions][j] = ch;
-                    j++;
-                }
-            }*/
         }
     }
 
@@ -257,7 +226,7 @@ int get_hash_codes(char *file, char* hash_commands, char** hash_codes)
             i++;
         }
     }
-    
+
     close(tmp_file_des);
     unlink(tmp_file_name);
 

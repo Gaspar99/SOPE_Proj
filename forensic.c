@@ -8,8 +8,11 @@
 #include <time.h>
 #include <string.h>
 
+#include "print_info.h"
+
 int is_directory(const char *path);
 int check_command(int argc, char *argv[], char command[]); 
+int register_log(int log_file_des, pid_t pid, clock_t beginning, char* act);
 
 int main(int argc, char *argv[], char *envp[])
 {
@@ -17,11 +20,25 @@ int main(int argc, char *argv[], char *envp[])
     pid_t pid;
     struct stat file_stat;
 
+    clock_t beginning = clock();
+
     if (argc < 2 || argc > 9) {
         perror("Wrong number of possible arguments.");
         exit(1);
     }
 
+    //Command: -v
+    int log_command_index = check_command(argc, argv, "-v");
+    int log_file_des;
+    if(log_command_index != -1)
+    {
+        char log_file_name[50];
+        strcpy(log_file_name, getenv("LOGFILENAME"));
+        
+        log_file_des = open(log_file_name, O_WRONLY | O_CREAT, 0750);
+    }
+
+    //Command: -o
     int output_command_index = check_command(argc, argv, "-o");
     if(output_command_index != -1)
     {
@@ -43,12 +60,15 @@ int main(int argc, char *argv[], char *envp[])
 
         pid = fork();
         if(pid == 0)  {//Child
+            if(log_command_index != -1) {
+                
+            }
 
             int hash_command_index = check_command(argc, argv, "-h");
             if(hash_command_index != -1)
-                execlp("./print_info", "./print_info", argv[argc - 1], argv[hash_command_index + 1], NULL);
+                print(argv[argc - 1], argv[hash_command_index + 1], NULL);
             else 
-                execlp("./print_info", "./print_info", argv[argc - 1], NULL);
+                print(argv[argc - 1], NULL, NULL);
 
             perror("Error: print_info!");
             exit(1);
@@ -80,5 +100,15 @@ int is_directory(const char *path)
     }
 
     return S_ISDIR(file_stat.st_mode);
+}
+
+int register_log(int log_file_des, pid_t pid, clock_t beginning, char* act)
+{
+    char log[50];
+
+    double elapsed = (double) (clock() - beginning) * 1000 / CLOCKS_PER_SEC;
+
+    
+
 }
 
