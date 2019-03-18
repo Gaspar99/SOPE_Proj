@@ -9,7 +9,7 @@ int print(char* file_name, char* hash_commands, int log_file_des)
 
     //File type
     char file_type[20];
-    get_file_type(file_name, file_type);
+    get_file_type(file_name, file_type, log_file_des);
     write(STDOUT_FILENO, file_type, strlen(file_type)); 
 
     stat(file_name, &file_stat);
@@ -49,7 +49,7 @@ int print(char* file_name, char* hash_commands, int log_file_des)
         for(int i = 0; i < 3; i++)
             hash_codes[i] = (char*) malloc(sizeof(char) * 80);
 
-        int functions = get_hash_codes(file_name, hash_commands, hash_codes);
+        int functions = get_hash_codes(file_name, hash_commands, hash_codes, log_file_des);
 
         for(int i = 0; i < functions; i++)
             write(STDOUT_FILENO, hash_codes[i], strlen(hash_codes[i]));
@@ -59,7 +59,7 @@ int print(char* file_name, char* hash_commands, int log_file_des)
     exit(0);
 }
 
-int get_file_type(char* file_name, char* file_type)
+int get_file_type(char* file_name, char* file_type, int log_file_des)
 {
     int tmp_file_des, stdout_copy;
     pid_t pid;
@@ -71,6 +71,14 @@ int get_file_type(char* file_name, char* file_type)
 
     pid = fork();
     if(pid == 0) { //Child
+
+        if(log_file_des != -1)
+        {
+            char act[] = "COMMAND file ";
+            strcat(act, file_name);
+            register_log(log_file_des, getpid(), act);
+        }
+            
         execlp("file", "file", file_name, NULL);
         perror("Error executing file command.");
         exit(1);
@@ -152,7 +160,7 @@ int format_date(time_t time, char* formated_date)
     return 0;
 }
 
-int get_hash_codes(char *file, char* hash_commands, char** hash_codes)
+int get_hash_codes(char* file, char* hash_commands, char **hash_codes, int log_file_des)
 {
     pid_t pid;
     int tmp_file_des, stdout_copy;
@@ -186,6 +194,14 @@ int get_hash_codes(char *file, char* hash_commands, char** hash_codes)
         pid = fork();
         if( pid == 0)
         {
+            if(log_file_des != -1)
+            {
+                char act[] = "COMMAND ";
+                strcat(act, hash_functions[i]);
+                strcat(act, " ");
+                strcat(act, file);
+            }
+
             strcat(hash_functions[i], "sum");
             execlp(hash_functions[i], hash_functions[i], file, NULL);
             perror("Error executing hash command.");
