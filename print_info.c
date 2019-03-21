@@ -31,15 +31,15 @@ int print(char* file_name, char* hash_commands, int log_file_des)
     file_access[j] = '\0';
     write(STDOUT_FILENO, file_access, strlen(file_access));
 
-    //File changes permissions time
-    char file_creation_time[30];
-    format_date(file_stat.st_ctime, file_creation_time);
-    write(STDOUT_FILENO, file_creation_time, strlen(file_creation_time));
-
     //File modified time
     char file_modified_time[30];
     format_date(file_stat.st_mtime, file_modified_time);
     write(STDOUT_FILENO, file_modified_time, strlen(file_modified_time));
+
+    //File accessed time
+    char file_accessed_time[30];
+    format_date(file_stat.st_atime, file_accessed_time);
+    write(STDOUT_FILENO, file_accessed_time, strlen(file_accessed_time));
 
     //Hash functions
     if(hash_commands != NULL)
