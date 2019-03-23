@@ -9,7 +9,7 @@ int commands_handler(int argc, char* argv[], struct commands *cmds)
     }
     
     //Command: -r
-    if (check_command(argc, argv, "-r"))
+    if (check_command(argc, argv, "-r") != -1)
         cmds->read_sub_dirs = true;
     else cmds->read_sub_dirs = false;
 

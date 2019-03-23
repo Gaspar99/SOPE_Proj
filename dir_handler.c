@@ -5,7 +5,7 @@ int process_dir(const char *path, struct commands *cmds)
     pid_t pid;
     DIR *dirp;
     struct dirent *direntp;
-    char file[60];
+    char file[300];
 
     if ((dirp = opendir(path)) == NULL)
     {
@@ -15,11 +15,7 @@ int process_dir(const char *path, struct commands *cmds)
 
     while ((direntp = readdir(dirp)) != NULL)
     {
-        //sprintf(file, "%s/%s", path, direntp->d_name);
-        
-        strcpy(file, path);
-        strcat(file, "/");
-        strcat(file, direntp->d_name);
+        sprintf(file, "%s/%s", path, direntp->d_name);
         
         if (is_directory(file)) {
             if(cmds->read_sub_dirs)

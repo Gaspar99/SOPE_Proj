@@ -66,7 +66,7 @@ int print(const char* file_path, struct commands *cmds)
         register_log(cmds->log_file_des, getpid(), act);
     }
 
-    exit(0);
+    return 0;
 }
 
 int get_file_type(const char* file_path, char* file_type, int log_file_des)
@@ -90,7 +90,7 @@ int get_file_type(const char* file_path, char* file_type, int log_file_des)
             register_log(log_file_des, getpid(), act);
         }
             
-        execl("file", "file", file_path, NULL);
+        execlp("file", "file", file_path, NULL);
         perror("Error executing file command.");
         exit(1);
     }
@@ -218,22 +218,20 @@ int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cm
             }
 
             strcat(hash_functions[i], "sum");
-            execl(hash_functions[i], hash_functions[i], file_path, NULL);
+            execlp(hash_functions[i], hash_functions[i], file_path, NULL);
             perror("Error executing hash command.");
             exit(1);
         }
         else {
             int status;
             wait(&status);
-            if(WEXITSTATUS(status) != 0) exit(1);
-
-            dup2(stdout_copy, STDOUT_FILENO);
-            close(stdout_copy);
-            close(tmp_file_des);  
+            if(WEXITSTATUS(status) != 0) exit(1); 
         }
     }
 
-    
+    dup2(stdout_copy, STDOUT_FILENO);
+    close(stdout_copy);
+    close(tmp_file_des); 
 
     tmp_file_des = open(tmp_file_name, O_RDONLY);
     char ch;
@@ -266,7 +264,6 @@ int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cm
     unlink(tmp_file_name);
 
     return functions;
-
 }
 
 

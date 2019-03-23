@@ -9,3 +9,8 @@ OBJS= forensic.o args_handler.o dir_handler.o logs.o print_info.o
  
 forensic: $(OBJS)
 		gcc $(CFLAGS) -o $@ $^
+
+clean:
+		-rm -f $(OBJS)
+		-rm -f forensic
+

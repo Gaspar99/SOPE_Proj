@@ -3,6 +3,7 @@
 !*.h
 !.gitignore
 !Makefile
+!Test
 
 
 
