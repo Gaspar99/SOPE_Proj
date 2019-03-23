@@ -12,7 +12,8 @@
 #include "logs.h"
 
 int is_directory(const char *path);
-int check_command(int argc, char *argv[], char command[]); 
+int check_command(int argc, char *argv[], char command[]);
+void sigint_handler(int sig_no); 
 
 int main(int argc, char *argv[], char *envp[])
 {
@@ -33,7 +34,7 @@ int main(int argc, char *argv[], char *envp[])
         char* log_file_name = (char*) malloc(sizeof(char) * 80);
         log_file_name = getenv("LOGFILENAME");
         
-        log_file_des = open(log_file_name, O_WRONLY | O_CREAT, 0750);
+        log_file_des = open(log_file_name, O_WRONLY | O_CREAT | O_APPEND, 0750);
     }
     else log_file_des = -1;
 
@@ -107,6 +108,12 @@ int is_directory(const char *path)
     }
 
     return S_ISDIR(file_stat.st_mode);
+}
+
+void sigint_handler(int sig_no)
+{
+    while(wait(NULL) != -1); //Wait for every child to finish
+    exit_program();
 }
 
 
