@@ -1,18 +1,18 @@
 #include "print_info.h"
 
-int print(char* file_name, char* hash_commands, int log_file_des)
+int print(const char* file_path, struct commands *cmds)
 {
     struct stat file_stat;
 
     //File name
-    write(STDOUT_FILENO, file_name, strlen(file_name)); //File name
+    write(STDOUT_FILENO, file_path, strlen(file_path)); //File name
 
     //File type
     char file_type[20];
-    get_file_type(file_name, file_type, log_file_des);
+    get_file_type(file_path, file_type, cmds->log_file_des);
     write(STDOUT_FILENO, file_type, strlen(file_type)); 
 
-    stat(file_name, &file_stat);
+    lstat(file_path, &file_stat);
 
     //File size
     char file_size[11] = ",";
@@ -42,24 +42,34 @@ int print(char* file_name, char* hash_commands, int log_file_des)
     write(STDOUT_FILENO, file_accessed_time, strlen(file_accessed_time));
 
     //Hash functions
-    if(hash_commands != NULL)
+    if(cmds->hash_commands != NULL)
     {
         char** hash_codes;
         hash_codes = (char**) malloc(sizeof(char) * 3);
         for(int i = 0; i < 3; i++)
             hash_codes[i] = (char*) malloc(sizeof(char) * 80);
 
-        int functions = get_hash_codes(file_name, hash_commands, hash_codes, log_file_des);
+        int functions = get_hash_codes(file_path, hash_codes, cmds);
 
         for(int i = 0; i < functions; i++)
             write(STDOUT_FILENO, hash_codes[i], strlen(hash_codes[i]));
     }
 
     write(STDOUT_FILENO, "\n", 1);
+
+
+    //Register event
+    if (cmds->log_file_des != -1)
+    {
+        char act[] = "ANALYZED ";
+        strcat(act, file_path);
+        register_log(cmds->log_file_des, getpid(), act);
+    }
+
     exit(0);
 }
 
-int get_file_type(char* file_name, char* file_type, int log_file_des)
+int get_file_type(const char* file_path, char* file_type, int log_file_des)
 {
     int tmp_file_des, stdout_copy;
     pid_t pid;
@@ -71,20 +81,24 @@ int get_file_type(char* file_name, char* file_type, int log_file_des)
 
     pid = fork();
     if(pid == 0) { //Child
-
+        
+        //Register event
         if(log_file_des != -1)
         {
             char act[] = "COMMAND file ";
-            strcat(act, file_name);
+            strcat(act, file_path);
             register_log(log_file_des, getpid(), act);
         }
             
-        execlp("file", "file", file_name, NULL);
+        execl("file", "file", file_path, NULL);
         perror("Error executing file command.");
         exit(1);
     }
     else {
-        wait(NULL);
+        int status;
+        wait(&status);
+        if(WEXITSTATUS(status) != 0) exit(1);
+
         dup2(stdout_copy, STDOUT_FILENO);
         close(stdout_copy);
         close(tmp_file_des);
@@ -160,7 +174,7 @@ int format_date(time_t time, char* formated_date)
     return 0;
 }
 
-int get_hash_codes(char* file, char* hash_commands, char **hash_codes, int log_file_des)
+int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cmds)
 {
     pid_t pid;
     int tmp_file_des, stdout_copy;
@@ -169,16 +183,16 @@ int get_hash_codes(char* file, char* hash_commands, char **hash_codes, int log_f
     char hash_functions[3][8];
     int functions = 0;
     int j = 0;
-    for(int i = 0; hash_commands[i] != '\0'; i++, j++)
+    for(int i = 0; cmds->hash_commands[i] != '\0'; i++, j++)
     {
-        if(hash_commands[i] == ',')
+        if(cmds->hash_commands[i] == ',')
         {
             hash_functions[functions][j] = '\0';
             functions++;
             j = -1;
         }
         else {
-            hash_functions[functions][j] = hash_commands[i];
+            hash_functions[functions][j] = cmds->hash_commands[i];
         }
     }
 
@@ -194,27 +208,32 @@ int get_hash_codes(char* file, char* hash_commands, char **hash_codes, int log_f
         pid = fork();
         if( pid == 0)
         {
-            if(log_file_des != -1)
-            {
+            if(cmds->log_file_des != -1)
+            {   
+                //Register event
                 char act[] = "COMMAND ";
                 strcat(act, hash_functions[i]);
                 strcat(act, " ");
-                strcat(act, file);
+                strcat(act, file_path);
             }
 
             strcat(hash_functions[i], "sum");
-            execlp(hash_functions[i], hash_functions[i], file, NULL);
+            execl(hash_functions[i], hash_functions[i], file_path, NULL);
             perror("Error executing hash command.");
             exit(1);
         }
         else {
-            wait(NULL);
+            int status;
+            wait(&status);
+            if(WEXITSTATUS(status) != 0) exit(1);
+
+            dup2(stdout_copy, STDOUT_FILENO);
+            close(stdout_copy);
+            close(tmp_file_des);  
         }
     }
 
-    dup2(stdout_copy, STDOUT_FILENO);
-    close(stdout_copy);
-    close(tmp_file_des);
+    
 
     tmp_file_des = open(tmp_file_name, O_RDONLY);
     char ch;

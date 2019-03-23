@@ -1,10 +1,20 @@
 #include "logs.h"
 
 clock_t initial_time;
+struct log_info logs;
 
 int start_time()
 {
     initial_time = clock();
+
+    return 0;
+}
+
+int set_log_info(int stdout_copy, char* output_file_name)
+{
+    logs.output_file_name = (char*) malloc(sizeof(char) * 20);
+    strcpy(logs.output_file_name, output_file_name);
+    logs.stdout_copy = stdout_copy;
 
     return 0;
 }
@@ -33,6 +43,5 @@ int register_log(int log_file_des, pid_t pid, char* act)
     write(log_file_des, log, strlen(log));
 
     return 0;
-    
 }
 
