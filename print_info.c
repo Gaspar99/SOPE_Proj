@@ -4,6 +4,14 @@ int print(const char* file_path, struct commands *cmds)
 {
     struct stat file_stat;
 
+   if(cmds->output_file_des != -1){
+        raise(SIGUSR2);
+
+        //Register event
+        if(cmds->log_file_des != -1) 
+            register_log(cmds->log_file_des, getpid(), "SIGNAL USR2");
+   } 
+
     //File name
     write(STDOUT_FILENO, file_path, strlen(file_path)); //File name
 
@@ -57,7 +65,6 @@ int print(const char* file_path, struct commands *cmds)
 
     write(STDOUT_FILENO, "\n", 1);
 
-
     //Register event
     if (cmds->log_file_des != -1)
     {
@@ -97,7 +104,7 @@ int get_file_type(const char* file_path, char* file_type, int log_file_des)
     else {
         int status;
         wait(&status);
-        if(WEXITSTATUS(status) != 0) exit(1);
+        if(WEXITSTATUS(status) == 1) exit(1);
 
         dup2(stdout_copy, STDOUT_FILENO);
         close(stdout_copy);
@@ -225,7 +232,7 @@ int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cm
         else {
             int status;
             wait(&status);
-            if(WEXITSTATUS(status) != 0) exit(1); 
+            if(WEXITSTATUS(status) == 1) exit(1); 
         }
     }
 

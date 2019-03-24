@@ -5,10 +5,12 @@
 #include "logs.h"
 #include "args_handler.h"
 #include "dir_handler.h"
+#include "signals_handler.h"
 
 int main(int argc, char *argv[])
 {    
     start_time();
+    set_signal_handlers();
     
     struct commands cmds;
     commands_handler(argc, argv, &cmds);

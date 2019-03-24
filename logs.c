@@ -1,7 +1,6 @@
 #include "logs.h"
 
-clock_t initial_time;
-struct log_info logs;
+static clock_t initial_time;
 
 int start_time()
 {
@@ -10,35 +9,19 @@ int start_time()
     return 0;
 }
 
-int set_log_info(int stdout_copy, char* output_file_name)
-{
-    logs.output_file_name = (char*) malloc(sizeof(char) * 20);
-    strcpy(logs.output_file_name, output_file_name);
-    logs.stdout_copy = stdout_copy;
-
-    return 0;
-}
-
 int register_log(int log_file_des, pid_t pid, char* act)
 {
     char log[50];
+    clock_t current_time = clock();
     
     //Inst
-    double elapsed = (double) (clock() - initial_time) * 1000 / CLOCKS_PER_SEC;
-    sprintf(log, "%.2lf", elapsed); 
+    char inst[10];
+    double elapsed = ( ((double) (current_time - initial_time)) / CLOCKS_PER_SEC ) * 1000;
+    sprintf(inst, "%f", elapsed);
+    if(inst[4] >= 5) inst[3]++;
+    inst[4] = '\0';
 
-    strcat(log, " - ");  
-
-    //Pid
-    char pid_string[30];
-    sprintf(pid_string, "%d", (int) pid);
-    strcat(log, pid_string);
-
-    strcat(log, " - ");
-
-    //Act
-    strcat(log, act);
-    strcat(log, "\n");
+    sprintf(log, "%s  -  %d  -  %s\n", inst, (int) pid, act);
 
     write(log_file_des, log, strlen(log));
 

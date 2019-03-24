@@ -13,14 +13,24 @@ int process_dir(const char *path, struct commands *cmds)
         return 1;
     }
 
+    if(cmds->output_file_des != -1) {
+        raise(SIGUSR1);
+        
+        //Register event
+        if(cmds->log_file_des != -1)    
+            register_log(cmds->log_file_des, getpid(), "SIGNAL USR1");
+    } 
+
     while ((direntp = readdir(dirp)) != NULL)
     {
+        if(!strcmp(direntp->d_name, ".") || !strcmp(direntp->d_name, "..")) //Ignore partent folders
+			continue;
+
         sprintf(file, "%s/%s", path, direntp->d_name);
         
         if (is_directory(file)) {
             if(cmds->read_sub_dirs)
             {
-
                 pid = fork();
                 if (pid == 0) //Child
                 { 
@@ -33,10 +43,11 @@ int process_dir(const char *path, struct commands *cmds)
             print(file, cmds);
     }
 
+    wait(NULL);
     return 0;
 }
 
-int is_directory(const char *path)
+bool is_directory(const char *path)
 {
     struct stat file_stat;
     if (lstat(path, &file_stat) != 0)

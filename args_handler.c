@@ -2,7 +2,7 @@
 
 int commands_handler(int argc, char* argv[], struct commands *cmds)
 {
-        if (argc < 2 || argc > 9)
+    if (argc < 2 || argc > 9)
     {
         perror("Wrong number of possible arguments.");
         exit(1);
@@ -26,12 +26,15 @@ int commands_handler(int argc, char* argv[], struct commands *cmds)
     if (output_command_index != -1)
     {
         char output_file_name[20];
-
         strcpy(output_file_name, argv[output_command_index + 1]);
-        cmds->output_file_des = open(output_file_name, O_WRONLY | O_CREAT, 0750);
+        cmds->output_file_des = open(output_file_name, O_WRONLY | O_CREAT | O_APPEND, 0750);
 
-        set_log_info(dup(STDOUT_FILENO), output_file_name);
+        set_output_info(dup(STDOUT_FILENO), output_file_name);
         dup2(cmds->output_file_des, STDOUT_FILENO);
+    }
+    else {
+        set_output_info(-1, NULL);
+        cmds->output_file_des = -1;
     }
 
     //Command: -v
@@ -58,5 +61,29 @@ int check_command(int argc, char *argv[], char command[])
     }
 
     return -1;
+}
+
+
+struct output_info out;
+
+int set_output_info(int stdout_copy, char* output_file_name)
+{
+    if(output_file_name != NULL) {
+        out.output_file_name = (char*) malloc(sizeof(char) * 50);
+        strcpy(out.output_file_name, output_file_name);
+    }
+    else out.output_file_name = output_file_name;   
+    out.stdout_copy = stdout_copy;
+
+    return 0;
+}
+
+int get_output_info(struct output_info *output_file_info)
+{
+    output_file_info->output_file_name = (char*) malloc(sizeof(char) * 50);
+    strcpy(output_file_info->output_file_name, out.output_file_name);
+    output_file_info->stdout_copy = out.stdout_copy;
+
+    return 0;
 }
 
