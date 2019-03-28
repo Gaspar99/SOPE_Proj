@@ -9,5 +9,6 @@
 #include "args_handler.h"
 
 void set_signal_handlers();
-//static void sigint_handler(int sig_no);
+void sigint_handler();
 void num_files_handler(int sig_no);
+bool sigint_received();

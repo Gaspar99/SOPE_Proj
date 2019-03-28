@@ -3,51 +3,42 @@
 int print(const char* file_path, struct commands *cmds)
 {
     struct stat file_stat;
+    char file_info[400];
 
-   if(cmds->output_file_des != -1){
+    if(cmds->output_file_des != -1){
         raise(SIGUSR2);
 
         //Register event
         if(cmds->log_file_des != -1) 
             register_log(cmds->log_file_des, getpid(), "SIGNAL USR2");
-   } 
-
-    //File name
-    write(STDOUT_FILENO, file_path, strlen(file_path)); //File name
+    } 
 
     //File type
-    char file_type[20];
-    get_file_type(file_path, file_type, cmds->log_file_des);
-    write(STDOUT_FILENO, file_type, strlen(file_type)); 
+    char file_type[100];
+    get_file_type(file_path, file_type, cmds);
 
     lstat(file_path, &file_stat);
 
     //File size
-    char file_size[11] = ",";
-    char size[10];
-    sprintf(size, "%d", (int) file_stat.st_size);
-    strcat(file_size, size);
-    write(STDOUT_FILENO, file_size, strlen(file_size));
+    int file_size = (int) file_stat.st_size;
 
     //File access
     char file_access[5];
     int j = 0;
-    file_access[j++] = ',';
     if(file_stat.st_mode & S_IRUSR) file_access[j++] = 'r';
     if(file_stat.st_mode & S_IWUSR) file_access[j++] = 'w';
     if(file_stat.st_mode & S_IXUSR) file_access[j++] = 'x';
     file_access[j] = '\0';
-    write(STDOUT_FILENO, file_access, strlen(file_access));
 
     //File modified time
     char file_modified_time[30];
     format_date(file_stat.st_mtime, file_modified_time);
-    write(STDOUT_FILENO, file_modified_time, strlen(file_modified_time));
 
     //File accessed time
     char file_accessed_time[30];
     format_date(file_stat.st_atime, file_accessed_time);
-    write(STDOUT_FILENO, file_accessed_time, strlen(file_accessed_time));
+
+    sprintf(file_info, "%s,%s,%d,%s,%s,%s", file_path, file_type, file_size, file_access, file_modified_time, file_accessed_time);
 
     //Hash functions
     if(cmds->hash_commands != NULL)
@@ -60,12 +51,10 @@ int print(const char* file_path, struct commands *cmds)
         int functions = get_hash_codes(file_path, hash_codes, cmds);
 
         for(int i = 0; i < functions; i++)
-            write(STDOUT_FILENO, hash_codes[i], strlen(hash_codes[i]));
+            strcat(file_info, hash_codes[i]);
     }
 
-    write(STDOUT_FILENO, "\n", 1);
-
-    //Register event
+    //Register event: finished analyse of file
     if (cmds->log_file_des != -1)
     {
         char act[] = "ANALYZED ";
@@ -73,10 +62,27 @@ int print(const char* file_path, struct commands *cmds)
         register_log(cmds->log_file_des, getpid(), act);
     }
 
+    strcat(file_info, "\n");
+    write(STDOUT_FILENO, file_info, strlen(file_info));
+
+    //Register event: printed file info
+    if (cmds->log_file_des != -1)
+    {
+        char act[] = "PRINTED ";
+        strcat(act, file_path);
+        register_log(cmds->log_file_des, getpid(), act);
+    }
+
+    if(sigint_received()) {
+        if(cmds->output_file_des != -1) close_output_file(cmds);
+        if(cmds->log_file_des != -1) close_logs_file(cmds->log_file_des, cmds->log_file_name);
+        exit(0);
+    } 
+
     return 0;
 }
 
-int get_file_type(const char* file_path, char* file_type, int log_file_des)
+int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
 {
     int tmp_file_des, stdout_copy;
     pid_t pid;
@@ -90,11 +96,11 @@ int get_file_type(const char* file_path, char* file_type, int log_file_des)
     if(pid == 0) { //Child
         
         //Register event
-        if(log_file_des != -1)
+        if(cmds->log_file_des != -1)
         {
             char act[] = "COMMAND file ";
             strcat(act, file_path);
-            register_log(log_file_des, getpid(), act);
+            register_log(cmds->log_file_des, getpid(), act);
         }
             
         execlp("file", "file", file_path, NULL);
@@ -122,7 +128,7 @@ int get_file_type(const char* file_path, char* file_type, int log_file_des)
             break;
         }
 
-        if (ch == ':') {
+        if (ch == ' ' && !reading_file_type) {
             reading_file_type = true;
             continue;
         }
@@ -132,10 +138,14 @@ int get_file_type(const char* file_path, char* file_type, int log_file_des)
         }
     }
 
-    file_type[0] = ',';
-
     close(tmp_file_des);
     unlink(tmp_file_name);
+
+    if(sigint_received()) {
+        if(cmds->output_file_des != -1) close_output_file(cmds);
+        if(cmds->log_file_des != -1) close_logs_file(cmds->log_file_des, cmds->log_file_name);
+        exit(0);
+    } 
 
     return 0;
 }
@@ -143,40 +153,12 @@ int get_file_type(const char* file_path, char* file_type, int log_file_des)
 int format_date(time_t time, char* formated_date)
 {
     struct tm* date_time;
-
     date_time = localtime(&time);
 
-    char year[5];
-    sprintf(year, "%d", date_time->tm_year + 1900);
-
-    char month[3];
-    sprintf(month, "%d", date_time->tm_mon + 1);
-
-    char day[3];
-    sprintf(day, "%d", date_time->tm_mday);
-
-    char hour[3];
-    sprintf(hour, "%02d", date_time->tm_hour);
-
-    char min[3];
-    sprintf(min, "%02d", date_time->tm_min);
-
-    char sec[3];
-    sprintf(sec, "%02d", date_time->tm_sec);
-
-    strcpy(formated_date, ",");
-    strcat(formated_date, year);
-    strcat(formated_date, "-");
-    strcat(formated_date, month);
-    strcat(formated_date, "-");
-    strcat(formated_date, day);
-
-    strcat(formated_date, "T");
-    strcat(formated_date, hour);
-    strcat(formated_date, ":");
-    strcat(formated_date, min);
-    strcat(formated_date, ":");
-    strcat(formated_date, sec);
+    sprintf(formated_date, 
+    "%d-%d-%dT%02d:%02d:%02d", 
+    date_time->tm_year + 1900, date_time->tm_mon + 1, date_time->tm_mday, 
+    date_time->tm_hour, date_time->tm_min, date_time->tm_sec);
 
     return 0;
 }
@@ -269,6 +251,12 @@ int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cm
 
     close(tmp_file_des);
     unlink(tmp_file_name);
+
+    if(sigint_received()) {
+        if(cmds->output_file_des != -1) close_output_file(cmds);
+        if(cmds->log_file_des != -1) close_logs_file(cmds->log_file_des, cmds->log_file_name);
+        exit(0);
+    } 
 
     return functions;
 }

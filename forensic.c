@@ -18,15 +18,11 @@ int main(int argc, char *argv[])
     if(is_directory(argv[argc - 1]))
         process_dir(argv[argc - 1], &cmds); 
     else 
-    {
-        //Checks if file exists in current directory
-        if (open(argv[argc - 1], O_RDONLY) == -1)
-        {
-            perror("File does not exist.");
-            exit(1);
-        }
-
         print(argv[argc - 1], &cmds);
-    }
+    
+    if(cmds.output_file_des != -1) close_output_file(&cmds);
+    if(cmds.log_file_des != -1) close_logs_file(cmds.log_file_des, cmds.log_file_name);
+
+    return 0;
 }
 
