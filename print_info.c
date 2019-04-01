@@ -91,7 +91,8 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
 {
     int tmp_file_des, stdout_copy;
     pid_t pid;
-    char tmp_file_name[] = "file_type.txt";
+    char tmp_file_name[100];
+    sprintf(tmp_file_name, "file_type%d.txt", file_hash(file_path));
 
     tmp_file_des = open(tmp_file_name, O_WRONLY | O_CREAT, 0750);
     stdout_copy = dup(STDOUT_FILENO);
@@ -115,7 +116,7 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
     else {
         int status;
         wait(&status);
-        //if(WEXITSTATUS(status) == 1) exit(1);
+        if(WEXITSTATUS(status) == 1) exit(1);
 
         dup2(stdout_copy, STDOUT_FILENO);
         close(stdout_copy);
@@ -172,7 +173,8 @@ int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cm
 {
     pid_t pid;
     int tmp_file_des, stdout_copy;
-    char tmp_file_name[] = "hash_codes.txt";
+    char tmp_file_name[100];
+    sprintf(tmp_file_name, "hash_codes%d.txt", file_hash(file_path));
 
     char hash_functions[3][8];
     int functions = 0;
@@ -264,6 +266,17 @@ int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cm
     } 
 
     return functions;
+}
+
+int file_hash(const char* file_path)
+{
+    unsigned long hash = 5381;
+    int c;
+
+    while ((c = *file_path++))
+        hash = ((hash << 5) + hash) + c; 
+
+    return hash;
 }
 
 
