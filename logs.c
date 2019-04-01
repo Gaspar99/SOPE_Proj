@@ -1,10 +1,10 @@
 #include "logs.h"
 
-clock_t initial_time;
+struct timeval initial_time;
 
 int start_time()
 {
-    initial_time = clock();
+    gettimeofday(&initial_time, NULL);
 
     return 0;
 }
@@ -12,13 +12,26 @@ int start_time()
 int register_log(int log_file_des, pid_t pid, char* act)
 {
     char log[400];
-    //clock_t current_time = clock();
-    
-    //Inst
-    clock_t running_time = clock() - initial_time;
-    double elapsed = ((double) (running_time / CLOCKS_PER_SEC ) * 1000 );
+    struct timeval current_time;
 
-    sprintf(log, "%.2lf  -  %d  -  %s\n", elapsed, (int) pid, act);
+    //Inst
+    gettimeofday(&current_time, NULL);
+    float elapsed_time = (float) ( (current_time.tv_usec - initial_time.tv_usec) / 1000);
+
+    char inst[10];
+    sprintf(inst, "%.2f", elapsed_time);
+    int inst_length = strlen(inst);
+    while(inst_length < 6) inst[inst_length++] = ' ';
+    inst[inst_length] = '\0';
+
+    //pid
+    char pid_string[10];
+    sprintf(pid_string, "%d", (int) pid);
+    int pid_length = strlen(pid_string);
+    while(pid_length < 7) pid_string[pid_length++] = ' ';
+    pid_string[pid_length] = '\0';
+
+    sprintf(log, "%s  -  %s  -  %s\n", inst, pid_string, act);
 
     write(log_file_des, log, strlen(log));
 

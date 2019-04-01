@@ -14,7 +14,7 @@ int print(const char* file_path, struct commands *cmds)
     } 
 
     //File type
-    char file_type[100];
+    char file_type[50];
     get_file_type(file_path, file_type, cmds);
 
     lstat(file_path, &file_stat);
@@ -52,6 +52,11 @@ int print(const char* file_path, struct commands *cmds)
 
         for(int i = 0; i < functions; i++)
             strcat(file_info, hash_codes[i]);
+
+        for(int i = 0; i < functions; i++)
+            free(hash_codes[i]);
+
+        free(hash_codes); 
     }
 
     //Register event: finished analyse of file
@@ -110,7 +115,7 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
     else {
         int status;
         wait(&status);
-        if(WEXITSTATUS(status) == 1) exit(1);
+        //if(WEXITSTATUS(status) == 1) exit(1);
 
         dup2(stdout_copy, STDOUT_FILENO);
         close(stdout_copy);
@@ -122,7 +127,7 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
     int i = 0;
     bool reading_file_type = false;
     while( read(tmp_file_des, &ch, 1) == 1) {
-        if (ch == '\n' || ch == ',' || ch == 0x0) {
+        if (ch == '\n' || ch == ',') {
             file_type[i] = '\0';
             reading_file_type = false;
             break;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sys/stat.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <stdbool.h>
