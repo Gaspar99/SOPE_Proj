@@ -13,6 +13,12 @@ int print(const char* file_path, struct commands *cmds)
             register_log(cmds->log_file_des, getpid(), "SIGNAL USR2");
     } 
 
+    //File name
+    char* file_name;
+    file_name = (char*) malloc(sizeof(char) * 100);
+    strcpy(file_name, file_path);
+    while( *file_name++ != '/');
+
     //File type
     char file_type[50];
     get_file_type(file_path, file_type, cmds);
@@ -38,7 +44,7 @@ int print(const char* file_path, struct commands *cmds)
     char file_accessed_time[30];
     format_date(file_stat.st_atime, file_accessed_time);
 
-    sprintf(file_info, "%s,%s,%d,%s,%s,%s", file_path, file_type, file_size, file_access, file_modified_time, file_accessed_time);
+    sprintf(file_info, "%s,%s,%d,%s,%s,%s", file_name, file_type, file_size, file_access, file_modified_time, file_accessed_time);
 
     //Hash functions
     if(cmds->hash_commands != NULL)
@@ -94,7 +100,7 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
     char tmp_file_name[100];
     sprintf(tmp_file_name, "file_type%d.txt", file_hash(file_path));
 
-    tmp_file_des = open(tmp_file_name, O_WRONLY | O_CREAT, 0750);
+    tmp_file_des = open(tmp_file_name, O_RDWR | O_CREAT, 0750);
     stdout_copy = dup(STDOUT_FILENO);
     dup2(tmp_file_des, STDOUT_FILENO);
 
@@ -120,10 +126,9 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
 
         dup2(stdout_copy, STDOUT_FILENO);
         close(stdout_copy);
-        close(tmp_file_des);
+        lseek(tmp_file_des, 0, SEEK_SET);
     }
-
-    tmp_file_des = open(tmp_file_name, O_RDONLY);
+    
     char ch;
     int i = 0;
     bool reading_file_type = false;
@@ -227,9 +232,8 @@ int get_hash_codes(const char* file_path, char **hash_codes, struct commands *cm
 
     dup2(stdout_copy, STDOUT_FILENO);
     close(stdout_copy);
-    close(tmp_file_des); 
+    lseek(tmp_file_des, 0, SEEK_SET);
 
-    tmp_file_des = open(tmp_file_name, O_RDONLY);
     char ch;
     int i = 0, code = 0;
     bool reading_hash = true;

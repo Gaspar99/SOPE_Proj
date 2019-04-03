@@ -1,5 +1,8 @@
 #include "signals_handler.h"
 
+static int num_files = 0;
+static int num_directories = 0;
+
 void set_signal_handlers()
 {
     struct sigaction num_files_action, sigint_action;
@@ -22,9 +25,6 @@ void set_signal_handlers()
 
 void num_files_handler(int sig_no)
 {
-    static int num_files = 0;
-    static int num_directories = 0;
-
     struct output_info output_file_info;
 
     get_output_info(&output_file_info);
