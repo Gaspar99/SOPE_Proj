@@ -15,7 +15,13 @@ int process_dir(const char *path, struct commands *cmds)
 
     while ((direntp = readdir(dirp)) != NULL)
     {
-        if(!strcmp(direntp->d_name, ".") || !strcmp(direntp->d_name, "..")) //Ignore partent folders
+        if(sigint_received()) {
+            if(cmds->output_file_des != -1) close_output_file(cmds);
+            if(cmds->log_file_des != -1) close_logs_file(cmds->log_file_des, cmds->log_file_name);
+            exit(0);
+        }
+
+        if(!strcmp(direntp->d_name, ".") || !strcmp(direntp->d_name, "..")) //Ignore parent folders
 			continue;
 
         sprintf(file, "%s/%s", path, direntp->d_name);
@@ -40,8 +46,19 @@ int process_dir(const char *path, struct commands *cmds)
                 }
             }
         }
-        else
+        else {
+
+            if(cmds->output_file_des != -1){
+                raise(SIGUSR2);
+        
+
+                //Register event
+                if(cmds->log_file_des != -1) 
+                    register_log(cmds->log_file_des, getpid(), "SIGNAL USR2");
+            }
+
             print(file, cmds);
+        }         
     }
 
     wait(NULL);

@@ -5,14 +5,6 @@ int print(const char* file_path, struct commands *cmds)
     struct stat file_stat;
     char file_info[400];
 
-    if(cmds->output_file_des != -1){
-        raise(SIGUSR2);
-
-        //Register event
-        if(cmds->log_file_des != -1) 
-            register_log(cmds->log_file_des, getpid(), "SIGNAL USR2");
-    } 
-
     //File name
     char* file_name;
     file_name = (char*) malloc(sizeof(char) * 100);
@@ -119,7 +111,7 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
         perror("Error executing file command.");
         exit(1);
     }
-    else {
+    else if(pid > 0) {
         int status;
         wait(&status);
         if(WEXITSTATUS(status) == 1) exit(1);
@@ -128,6 +120,7 @@ int get_file_type(const char* file_path, char* file_type, struct commands *cmds)
         close(stdout_copy);
         lseek(tmp_file_des, 0, SEEK_SET);
     }
+    else perror("Fork error.");
     
     char ch;
     int i = 0;

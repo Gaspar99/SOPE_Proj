@@ -12,3 +12,4 @@ void set_signal_handlers();
 void sigint_handler();
 void num_files_handler(int sig_no);
 bool sigint_received();
+void print_final_count();
