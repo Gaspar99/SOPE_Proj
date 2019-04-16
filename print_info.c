@@ -6,10 +6,11 @@ int print(const char* file_path, struct commands *cmds)
     char file_info[400];
 
     //File name
-    char* file_name;
-    file_name = (char*) malloc(sizeof(char) * 100);
-    strcpy(file_name, file_path);
-    while( *file_name++ != '/');
+    char file_name[100];
+    int i = 0;
+    while( file_path[i] != '/' && file_path[i] != '\0') i++;
+    if(file_path[i] == '/') strncpy(file_name, file_path + i + 1, 100);
+    else strcpy(file_name, file_path);
 
     //File type
     char file_type[50];
