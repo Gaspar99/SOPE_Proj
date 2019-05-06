@@ -1,4 +1,6 @@
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "constants.h"
 #include "types.h"
@@ -17,7 +19,7 @@ int get_req_header(char* argv[], req_header_t* req_header)
 int main(int argc, char* argv[])
 {
     req_header_t req_header;
-    
+
     if(argc != 6)
     {
         printf("Usage: %s <account_id> <password> <op_delay> <op_code> <op_args>\n", argv[0]);

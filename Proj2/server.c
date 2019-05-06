@@ -13,6 +13,9 @@
 bank_account_t bank_accounts[MAX_BANK_ACCOUNTS];
 int current_num_accounts = 0;
 
+int getHashPassword(char* password, char* hashPassword);
+int creat_account(uint32_t account_id, uint32_t balance, char* password);
+void* process_order(void* arg);
 
 int creat_account(uint32_t account_id, uint32_t balance, char* password)
 {
@@ -31,14 +34,15 @@ int getHashPassword(char* password, char* hashPassword)
 {
     hashPassword = (char*) malloc(sizeof(char) * HASH_LEN);
 
-
+    (void) password;
+    (void) hashPassword;
     return 0;
 }
 
-void* process_order(void* arg)
+void *process_order(void* arg)
 {
-
-
+    (void) arg;
+    return NULL;
 }
 
 int main(int argc, char* argv[])
