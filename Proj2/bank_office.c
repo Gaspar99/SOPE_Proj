@@ -68,7 +68,7 @@ ret_code_t create_account(req_create_account_t req_create_account)
     bank_accounts[current_num_accounts].account_id = req_create_account.account_id;
     bank_accounts[current_num_accounts].balance = req_create_account.balance;
     
-    if (getHashPassword(req_create_account.password, bank_accounts[current_num_accounts].hash)) return 1;
+    if (getHash(req_create_account.password, bank_accounts[current_num_accounts].hash)) return 1;
 
     //Get salt
 
@@ -100,5 +100,18 @@ ret_code_t shutdown()
 
 int write_response(pid_t user_pid, ret_code_t ret_code)
 {
+    char user_fifo_path[USER_FIFO_PATH_LEN];
+    int fifo_fd;
 
+    sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, (int) user_pid);
+    mkfifo(user_fifo_path, OPEN_FIFO_PERMISSIONS);
+
+    if ( (fifo_fd = open(user_fifo_path, O_WRONLY)) == -1) {
+        printf("Error opening user fifo.\n");
+        return 1;
+    }
+
+    write(fifo_fd, &ret_code, sizeof(ret_code));
+
+    return 0;
 }

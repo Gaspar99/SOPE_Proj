@@ -49,9 +49,9 @@ int get_req_header(char* argv[], req_header_t* req_header)
 
 int get_req_create_account(char* op_args, req_create_account_t* req_create_account)
 {
-    char* args[MAX_PASSWORD_LEN];
+    char* args[5];
     for(int i = 0; i < MAX_PASSWORD_LEN; i++)
-        args[i] = (char*) malloc(sizeof(char) * 21);
+        args[i] = (char*) malloc(sizeof(char) * MAX_PASSWORD_LEN);
 
     int argsSize = split_string(op_args, args);
 
@@ -77,9 +77,9 @@ int get_req_create_account(char* op_args, req_create_account_t* req_create_accou
 
 int get_req_transfer(char* op_args, req_transfer_t* req_transfer)
 {
-    char* args[MAX_PASSWORD_LEN];
+    char* args[5];
     for(int i = 0; i < MAX_PASSWORD_LEN; i++)
-        args[i] = (char*) malloc(sizeof(char) * 21);
+        args[i] = (char*) malloc(sizeof(char) * MAX_PASSWORD_LEN);
         
     int argsSize = split_string(op_args, args);
 
