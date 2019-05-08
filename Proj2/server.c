@@ -10,44 +10,7 @@
 #include "types.h"
 #include "sope.h"
 
-bank_account_t bank_accounts[MAX_BANK_ACCOUNTS];
-int current_num_accounts = 0;
-
-int getHashPassword(char* password, char* hashPassword);
-int create_account(uint32_t account_id, uint32_t balance, char* password);
-void* process_order(void* arg);
-
-int create_account(uint32_t account_id, uint32_t balance, char* password)
-{
-    bank_accounts[current_num_accounts].account_id = account_id;
-    bank_accounts[current_num_accounts].balance = balance;
-    
-    if (getHashPassword(password, bank_accounts[current_num_accounts].hash)) return 1;
-
-    //Get salt
-
-    current_num_accounts++;
-    return 0;
-}
-
-int getHashPassword(char* password, char* hashPassword)
-{
-    hashPassword = (char*) malloc(sizeof(char) * HASH_LEN);
-
-    (void) password;
-    (void) hashPassword;
-    return 0;
-}
-
-void *process_order(void* arg)
-{
-    (void) arg;
-
-    //Open server fifo to read request
-
-    
-    return NULL;
-}
+#include "bank_office.h"
 
 int main(int argc, char* argv[])
 {
@@ -64,7 +27,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if(create_account(ADMIN_ACCOUNT_ID, ADMIN_ACCOUNT_BALANCE, argv[2])) return 1;
+    //create admin account
 
     pthread_t bank_offices_tid[nr_bank_offices];
 
@@ -75,7 +38,7 @@ int main(int argc, char* argv[])
         logBankOfficeOpen(STDOUT_FILENO, i, bank_offices_tid[i]);
     }
 
-
+    
 
 
 }
