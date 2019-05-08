@@ -15,14 +15,14 @@
 #include "error_checker.h"
 
 void* process_order(void* arg);
-ret_code_t authenthicate_user(req_header_t req_header);
+int authenthicate_user(req_header_t req_header);
 
 ret_code_t create_account(req_create_account_t req_create_account);
-ret_code_t balance_inquiry(req_header_t req_header);
-ret_code_t transfer(req_transfer_t req_transfer);
-ret_code_t shutdown();
+ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance);
+ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer);
+ret_code_t shutdown(rep_shutdown_t *rep_shutdown);
 
 int getHash(char* password, char* hash);
 
-int write_response(pid_t user_pid, ret_code_t ret_code);
+int write_response(pid_t user_pid, tlv_reply_t tlv_reply);
 

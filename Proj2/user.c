@@ -14,7 +14,7 @@
 int main(int argc, char* argv[])
 {
     tlv_request_t tlv_request;
-    char fifo_path[USER_FIFO_PATH_LEN];
+    char user_fifo_path[USER_FIFO_PATH_LEN];
     int server_fifo_fd;
     
     if(argc != 6)
@@ -25,8 +25,8 @@ int main(int argc, char* argv[])
 
     if(get_tvl_request(argv, &tlv_request)) return 1;
 
-    sprintf(fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, (int) getpid());
-    mkfifo(fifo_path, OPEN_FIFO_PERMISSIONS);
+    sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, (int) getpid());
+    mkfifo(user_fifo_path, OPEN_FIFO_PERMISSIONS);
 
     //Open server fifo to write tlv request
     if ( (server_fifo_fd = open(SERVER_FIFO_PATH, O_WRONLY)) == -1) {

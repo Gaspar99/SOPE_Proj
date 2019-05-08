@@ -1,12 +1,5 @@
 #include "error_checker.h"
 
-int check_admin_account_id(uint32_t account_id)
-{
-    if(account_id != ADMIN_ACCOUNT_ID) return 1;
-
-    return 0;
-}
-
 int check_ops_args_size(int size)
 {
     if(size != 0) {

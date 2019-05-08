@@ -12,6 +12,8 @@
 
 #include "bank_office.h"
 
+int create_admin_account(char* password);
+
 int main(int argc, char* argv[])
 {
     int nr_bank_offices;
@@ -27,7 +29,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    //create admin account
+    if(create_admin_account(argv[2])) {
+        printf("Error: Unable to create admin account.\n");
+        return 1; 
+    }
 
     pthread_t bank_offices_tid[nr_bank_offices];
 
@@ -38,9 +43,18 @@ int main(int argc, char* argv[])
         logBankOfficeOpen(STDOUT_FILENO, i, bank_offices_tid[i]);
     }
 
-    
 
+}
 
+int create_admin_account(char* password)
+{
+    req_create_account_t admin_account;
+    admin_account.account_id = ADMIN_ACCOUNT_ID;
+    admin_account.balance = ADMIN_ACCOUNT_BALANCE;
+    strcpy(admin_account.password, password);
+    if(create_account(admin_account)) return 1; //TODO: CHECK OF RET CODE
+
+    return 0;
 }
 
 
