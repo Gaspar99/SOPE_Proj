@@ -92,44 +92,48 @@ ret_code_t create_account(req_create_account_t req_create_account)
     return 0;
 }
 
-int getHash(char* password, char* hash)
+int getHash(char* password, char* salt, char* hash)
 {
-    int fd[2], n, stdout_copy;
+    int fd[2], stdout_copy, status;
     pid_t pid;
+    char stringToHash[strlen(password) + 1];
+    sprintf(stringToHash, "%s%s", password, salt);
 
     if (pipe(fd) != 0) {
         perror("Error creating pipe");
-        exit(1);
+        return 1;
     }
 
-    pid = fork();
+    stdout_copy = dup(STDOUT_FILENO);
 
+    pid = fork();
     if (pid > 0) {
         close(fd[WRITE]);
-        stdout_copy = dup(STDOUT_FILENO);
         
-        n = read(fd[READ], hash, HASH_LEN);
-        if (n == 0) {
+        if (read(fd[READ], hash, HASH_LEN) == 0) {
             perror("Error reading hash");
-            exit(1);
+            return 1;
         }
-        
-        dup2(stdout_copy, STDOUT_FILENO);
-        close(stdout_copy);
+
+        wait(&status);
+        if(WEXITSTATUS(status) == 1) return 1;
     }
     else if (pid == 0) {
         close(fd[READ]);
         dup2(fd[WRITE], STDOUT_FILENO);
-        execlp("sha256sum", "sha256sum", password, NULL);
+        execlp("sha256sum", "sha256sum", stringToHash, NULL);
         perror("Error obtaining hash");
         exit(1);
     }
     else {
         perror("Error doing fork");
-        exit(1);
+        return 1;
     }
 
-    exit(0);
+    dup2(stdout_copy, STDOUT_FILENO);
+    close(stdout_copy);
+
+    return 0;
 }
 
 ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance)
