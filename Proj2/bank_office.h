@@ -12,6 +12,7 @@
 #include "types.h"
 #include "sope.h"
 
+#include "requests_queue.h"
 #include "error_checker.h"
 
 void* process_order(void* arg);
@@ -23,6 +24,7 @@ ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer);
 ret_code_t shutdown(rep_shutdown_t *rep_shutdown);
 
 int getHash(char* password, char* hash);
+int getSalt(char* salt);
 
 int write_response(pid_t user_pid, tlv_reply_t tlv_reply);
 

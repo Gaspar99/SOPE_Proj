@@ -2,6 +2,7 @@
 
 #define MAX_BANK_OFFICES 99
 #define MAX_BANK_ACCOUNTS 4096
+#define MAX_REQUESTS 4096
 #define MIN_BALANCE 1UL
 #define MAX_BALANCE 1000000000UL
 #define ADMIN_ACCOUNT_ID 0
@@ -27,6 +28,7 @@
 
 #define SERVER_LOGFILE "slog.txt"
 #define USER_LOGFILE "ulog.txt"
+#define LOG_FILE_PERMISSIONS 0750
 
 #define SERVER_FIFO_PATH "/tmp/secure_srv"
 #define USER_FIFO_PATH_PREFIX "/tmp/secure_"
