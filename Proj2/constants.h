@@ -36,3 +36,6 @@
 
 #define FIFO_TIMEOUT_SECS 30
 #define OPEN_FIFO_PERMISSIONS 0750
+
+#define READ 0
+#define WRITE 1

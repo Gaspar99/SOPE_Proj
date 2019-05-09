@@ -94,24 +94,42 @@ ret_code_t create_account(req_create_account_t req_create_account)
 
 int getHash(char* password, char* hash)
 {
-    int fd[2], n;
+    int fd[2], n, stdout_copy;
     pid_t pid;
 
-    pipe(fd);
+    if (pipe(fd) != 0) {
+        perror("Error creating pipe");
+        exit(1);
+    }
 
     pid = fork();
 
     if (pid > 0) {
-        close(fd[1]);
-        n = read(fd[0], hash, 64);
+        close(fd[WRITE]);
+        stdout_copy = dup(STDOUT_FILENO);
+        
+        n = read(fd[READ], hash, HASH_LEN);
+        if (n == 0) {
+            perror("Error reading hash");
+            exit(1);
+        }
+        
+        dup2(stdout_copy, STDOUT_FILENO);
+        close(stdout_copy);
+    }
+    else if (pid == 0) {
+        close(fd[READ]);
+        dup2(fd[WRITE], STDOUT_FILENO);
+        execlp("sha256sum", "sha256sum", password, NULL);
+        perror("Error obtaining hash");
+        exit(1);
     }
     else {
-        close(fd[0]);
-        dup2(fd[1], STDOUT_FILENO);
-        execl("./sha256sum", "sha256sum", password);
-        return 1;
+        perror("Error doing fork");
+        exit(1);
     }
 
+    exit(0);
 }
 
 ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance)
