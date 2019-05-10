@@ -78,29 +78,29 @@ void *process_order(void* arg)
 
 int authenthicate_user(req_header_t req_header)
 {
-    //return 1; if login failed
+    int account_index;
+    char hash[HASH_LEN];
 
-    (void) req_header;
-    return 0;
+    if( (account_index = get_account_index(req_header.account_id)) == -1) return 1;
+    if(getHash(req_header.password, bank_accounts[account_index].salt, hash)) return 1;
+
+    return strcmp(hash, bank_accounts[account_index].hash);
 }
 
 ret_code_t create_account(req_create_account_t req_create_account)
 {
-    ret_code_t ret_code = RC_OK;
+    char hash[HASH_LEN];
+
+    if(get_account_index(req_create_account.account_id) != -1) return RC_ID_IN_USE;
+    if (getHash(req_create_account.password, bank_accounts[current_num_accounts].salt, hash)) return RC_OTHER;
 
     bank_accounts[current_num_accounts].account_id = req_create_account.account_id;
     bank_accounts[current_num_accounts].balance = req_create_account.balance;
-
     getSalt(bank_accounts[current_num_accounts].salt);
-    
-    if (getHash(req_create_account.password, bank_accounts[current_num_accounts].salt, bank_accounts[current_num_accounts].hash)) return 1;
+    strcpy(bank_accounts[current_num_accounts].hash, hash);
 
     current_num_accounts++;
-
-    if(ret_code == RC_OK) {
-        logAccountCreation(log_file_des, pthread_self(), &bank_accounts[current_num_accounts]);
-    }
-        
+    logAccountCreation(log_file_des, pthread_self(), &bank_accounts[current_num_accounts]);
     return RC_OK;
 }
 
@@ -174,8 +174,6 @@ int getHash(char* password, char* salt, char* hash)
         return 1;    
     }
 
-    printf("%s", hash);
-
     return 0;
 }
 
@@ -233,4 +231,14 @@ void getSalt(char* salt)
     }
 
     sprintf(salt, "%d", salt_num);
+}
+
+int get_account_index(uint32_t account_id)
+{
+    for (int i = 0; i < current_num_accounts; i++) {
+        if (bank_accounts[i].account_id == account_id)
+            return i;
+    }
+
+    return -1;
 }
