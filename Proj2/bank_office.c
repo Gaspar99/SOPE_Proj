@@ -74,19 +74,28 @@ void *process_order(void* arg)
 
 int authenthicate_user(req_header_t req_header)
 {
-    //return 1; if login failed
+    int account_index;
+    char* hash;
 
-    return 0;
+    if(account_index = get_account_index(req_header.account_id) == -1) return 1;
+    if(getHash(req_header.password, bank_accounts[account_index].salt, hash)) return 1;
+
+    if(hash == bank_accounts[account_index].hash)
+        return 0;
+    else
+        return 1;
 }
 
 ret_code_t create_account(req_create_account_t req_create_account)
 {
+    if(get_account_index(req_create_account.account_id) != -1) return 1;
+
     bank_accounts[current_num_accounts].account_id = req_create_account.account_id;
     bank_accounts[current_num_accounts].balance = req_create_account.balance;
 
     if(getSalt(bank_accounts[current_num_accounts].salt)) return 1;
     
-    if (getHash(req_create_account.password, bank_accounts[current_num_accounts].hash)) return 1;
+    if(getHash(req_create_account.password, bank_accounts[current_num_accounts].hash, bank_accounts[current_num_accounts].salt)) return 1;
 
     current_num_accounts++;
     return 0;
@@ -177,4 +186,14 @@ int getSalt(char* salt)
     }
 
     return sprintf(salt, "%d", salt_num);
+}
+
+int get_account_index(uint32_t account_id)
+{
+    for (int i = 0; i < current_num_accounts; i++) {
+        if (bank_accounts[i].account_id == account_id)
+            return i;
+    }
+
+    return -1;
 }
