@@ -44,14 +44,14 @@ int main(int argc, char* argv[])
         return 1; 
     }
 
-    pthread_t bank_offices_tid[nr_bank_offices];
+    //pthread_t bank_offices_tid[nr_bank_offices];
 
     mkfifo(SERVER_FIFO_PATH, OPEN_FIFO_PERMISSIONS);
-
+/*
     for(int i = 1; i <= nr_bank_offices; i++) {
         pthread_create(&bank_offices_tid[i], NULL, process_order, NULL);
-        logBankOfficeOpen(STDOUT_FILENO, i, bank_offices_tid[i]);
-    }
+        logBankOfficeOpen(log_file_des, bank_offices_tid[i], bank_offices_tid[i]);
+    }*/
 
     if ( (server_fifo_fd = open(SERVER_FIFO_PATH, O_RDONLY)) == -1) {
         printf("Error opening server fifo.\n");
@@ -61,6 +61,7 @@ int main(int argc, char* argv[])
     while(true) {
         read(server_fifo_fd, &tlv_request, sizeof(tlv_request));
         put_request(tlv_request);
+        logRequest(log_file_des, MAIN_THREAD_ID, &tlv_request);
     }
     
 

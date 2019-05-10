@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include<sys/wait.h> 
 
 #include "constants.h"
 #include "types.h"
@@ -24,7 +25,7 @@ ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer);
 ret_code_t shutdown(rep_shutdown_t *rep_shutdown);
 
 int getHash(char* password, char* salt, char* hash);
-int getSalt(char* salt);
+void getSalt(char* salt);
 
 int write_response(pid_t user_pid, tlv_reply_t tlv_reply);
 

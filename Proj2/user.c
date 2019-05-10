@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
     }
 
     write(server_fifo_fd, &tlv_request, tlv_request.length);
+    logRequest(log_file_fd, getpid(), &tlv_request);
 
     //Open user fifo to read response
     if ( (user_fifo_fd = open(user_fifo_path, O_RDONLY)) == -1) {
@@ -50,6 +51,7 @@ int main(int argc, char* argv[])
     }
 
     read(user_fifo_fd, &tlv_reply, sizeof(tlv_reply));
+    logReply(log_file_fd, getpid(), &tlv_reply);
 
     return 0;
 }

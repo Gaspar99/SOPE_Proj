@@ -1,9 +1,5 @@
 #include "requests_queue.h"
 
-#include "constants.h"
-#include "types.h"
-#include "sope.h"
-
 tlv_request_t request_queue[MAX_REQUESTS];
 int waiting_requests = 0;
 int front = 0;
