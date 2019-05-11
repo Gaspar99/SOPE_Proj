@@ -4,77 +4,8 @@ bank_account_t bank_accounts[MAX_BANK_ACCOUNTS];
 int current_num_accounts = 0;
 
 extern int log_file_des;
-
-void *process_order(void* arg)
-{
-    (void) arg;
-    tlv_request_t tlv_request;
-    tlv_reply_t tlv_reply;
-
-    get_request(&tlv_request);
-    logRequest(log_file_des, pthread_self(), &tlv_request);
-
-    tlv_reply.type = tlv_request.type;
-    tlv_reply.value.header.account_id = tlv_request.value.header.account_id;
-
-    if( authenthicate_user(tlv_request.value.header)) {
-        tlv_reply.value.header.ret_code = RC_LOGIN_FAIL;
-        tlv_reply.length = sizeof(tlv_reply.value.header);
-        write_response(tlv_request.value.header.pid, tlv_reply); 
-    }
-    
-    switch(tlv_request.type) {
-        case OP_CREATE_ACCOUNT: {
-            if(tlv_request.value.header.account_id != ADMIN_ACCOUNT_ID) {
-                tlv_reply.value.header.ret_code = RC_OP_NALLOW;
-                tlv_reply.length = sizeof(tlv_reply.value.header);
-                break;
-            }
-            tlv_reply.value.header.ret_code = create_account(tlv_request.value.create);
-            tlv_reply.length = sizeof(tlv_reply.value.header);
-            break;
-        }
-        case OP_BALANCE: {
-            if(tlv_request.value.header.account_id == ADMIN_ACCOUNT_ID) {
-                tlv_reply.value.header.ret_code = RC_OP_NALLOW;
-                tlv_reply.length = sizeof(tlv_reply.value.header); 
-                break;
-            }
-            tlv_reply.value.header.ret_code = balance_inquiry(tlv_request.value.header, &tlv_reply.value.balance);
-            tlv_reply.length = sizeof(tlv_reply.value.header) + sizeof(tlv_reply.value.balance);
-            break;
-        }
-        case OP_TRANSFER: {
-            if(tlv_request.value.header.account_id == ADMIN_ACCOUNT_ID) {
-                tlv_reply.value.header.ret_code = RC_OP_NALLOW;
-                tlv_reply.length = sizeof(tlv_reply.value.header); 
-                break;
-            }
-            tlv_reply.value.header.ret_code = transfer(tlv_request.value.transfer, &tlv_reply.value.transfer);
-            tlv_reply.length = sizeof(tlv_reply.value.header) + sizeof(tlv_reply.value.transfer);
-            break;
-        }
-        case OP_SHUTDOWN: {
-            if(tlv_request.value.header.account_id != ADMIN_ACCOUNT_ID) {
-                tlv_reply.value.header.ret_code = RC_OP_NALLOW;
-                tlv_reply.length = sizeof(tlv_reply.value.header);
-                break;
-            }
-            tlv_reply.value.header.ret_code = shutdown(&tlv_reply.value.shutdown);
-            tlv_reply.length = sizeof(tlv_reply.value.header) + sizeof(tlv_reply.value.shutdown);
-            break;
-        }
-        default: {
-
-            break;
-        }
-    }
-
-    if(write_response(tlv_request.value.header.pid, tlv_reply)) return (void*) 1;
-
-
-    return NULL;
-}
+extern int nr_bank_offices_open;
+bool down = false;
 
 int authenthicate_user(req_header_t req_header)
 {
@@ -102,6 +33,64 @@ ret_code_t create_account(req_create_account_t req_create_account)
     current_num_accounts++;
     logAccountCreation(log_file_des, pthread_self(), &bank_accounts[current_num_accounts]);
     return RC_OK;
+}
+
+ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance)
+{
+    (void) req_header;
+    (void) rep_balance;
+
+
+    return RC_OK;
+}
+
+ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer)
+{
+    (void) req_transfer;
+    (void) rep_transfer;
+
+    
+    return RC_OK;
+}
+
+ret_code_t shutdown(rep_shutdown_t *rep_shutdown)
+{
+    down = true;
+
+    if( chmod(SERVER_FIFO_PATH, READ_ONLY_PERMISSIONS)) return RC_OTHER;
+
+    rep_shutdown->active_offices = nr_bank_offices_open;
+
+    return RC_OK;
+}
+
+int write_response(pid_t user_pid, tlv_reply_t tlv_reply, int bank_office_id)
+{
+    char user_fifo_path[USER_FIFO_PATH_LEN];
+    int fifo_fd;
+
+    sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, (int) user_pid);
+
+    if ( (fifo_fd = open(user_fifo_path, O_WRONLY)) == -1) {
+        printf("Error opening user fifo.\n");
+        return 1;
+    }
+
+    write(fifo_fd, &tlv_reply, tlv_reply.length);
+    logReply(log_file_des, bank_office_id, &tlv_reply);
+
+    return 0;
+}
+
+void getSalt(char* salt)
+{
+    int salt_num = 0x0;
+
+    for(int i = 0; i < SALT_LEN; i += 8) {
+        salt_num |= rand() & i;
+    }
+
+    sprintf(salt, "%d", salt_num);
 }
 
 int getHash(char* password, char* salt, char* hash)
@@ -177,62 +166,6 @@ int getHash(char* password, char* salt, char* hash)
     return 0;
 }
 
-ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance)
-{
-    (void) req_header;
-    (void) rep_balance;
-
-
-    return RC_OK;
-}
-
-ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer)
-{
-    (void) req_transfer;
-    (void) rep_transfer;
-
-    
-    return RC_OK;
-}
-
-ret_code_t shutdown(rep_shutdown_t *rep_shutdown)
-{
-    (void) rep_shutdown;
-
-
-    
-    return RC_OK;
-}
-
-int write_response(pid_t user_pid, tlv_reply_t tlv_reply)
-{
-    char user_fifo_path[USER_FIFO_PATH_LEN];
-    int fifo_fd;
-
-    sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, (int) user_pid);
-
-    if ( (fifo_fd = open(user_fifo_path, O_WRONLY)) == -1) {
-        printf("Error opening user fifo.\n");
-        return 1;
-    }
-
-    write(fifo_fd, &tlv_reply, tlv_reply.length);
-    logReply(log_file_des, pthread_self(), &tlv_reply);
-
-    return 0;
-}
-
-void getSalt(char* salt)
-{
-    int salt_num = 0x0;
-
-    for(int i = 0; i < SALT_LEN; i += 8) {
-        salt_num |= rand() & i;
-    }
-
-    sprintf(salt, "%d", salt_num);
-}
-
 int get_account_index(uint32_t account_id)
 {
     for (int i = 0; i < current_num_accounts; i++) {
@@ -241,4 +174,9 @@ int get_account_index(uint32_t account_id)
     }
 
     return -1;
+}
+
+bool isDown()
+{
+    return down;
 }

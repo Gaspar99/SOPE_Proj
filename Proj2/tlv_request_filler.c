@@ -39,10 +39,17 @@ int get_tvl_request(char* argv[], tlv_request_t* tlv_request)
 
 int get_req_header(char* argv[], req_header_t* req_header)
 {
+    uint32_t account_id = (uint32_t) atoi(argv[1]);
+    uint32_t op_dealy_ms = atoi(argv[3]);
+
+    if(check_account_id(account_id)) return 1;
+    if(check_op_delay(op_dealy_ms)) return 1;
+    if(check_password_length(strlen(argv[2]))) return 1;
+
     req_header->pid = getpid();
-    req_header->account_id = atoi(argv[1]);
+    req_header->account_id = account_id;
     strcpy(req_header->password, argv[2]);
-    req_header->op_delay_ms = atoi(argv[3]);
+    req_header->op_delay_ms = op_dealy_ms;
 
     return 0;
 }
@@ -62,15 +69,17 @@ int get_req_create_account(char* op_args, req_create_account_t* req_create_accou
 
     uint32_t account_id = (uint32_t) atoi(args[1]);
     uint32_t balance = (uint32_t) atoi(args[2]);
-    char* password = args[3];
 
     if(check_account_id(account_id)) return 1;
     if(check_balance(balance)) return 1;
-    if(check_password_length(strlen(password))) return 1;
+    if(check_password_length(strlen(args[3]))) return 1;
 
     req_create_account->account_id = account_id;
     req_create_account->balance = balance;
     strcpy(req_create_account->password, args[3]);
+
+    for(int i = 0; i < MAX_PASSWORD_LEN; i++)
+        free(args[i]);
 
     return 0;
 }
