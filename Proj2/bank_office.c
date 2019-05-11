@@ -18,7 +18,7 @@ int authenthicate_user(req_header_t req_header)
     return strcmp(hash, bank_accounts[account_index].hash);
 }
 
-ret_code_t create_account(req_create_account_t req_create_account)
+ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id)
 {
     char hash[HASH_LEN];
 
@@ -31,7 +31,7 @@ ret_code_t create_account(req_create_account_t req_create_account)
     strcpy(bank_accounts[current_num_accounts].hash, hash);
 
     current_num_accounts++;
-    logAccountCreation(log_file_des, pthread_self(), &bank_accounts[current_num_accounts]);
+    logAccountCreation(log_file_des, bank_office_id, &bank_accounts[current_num_accounts]);
     return RC_OK;
 }
 

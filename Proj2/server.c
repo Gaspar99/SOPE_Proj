@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     int bank_office_id[nr_bank_offices];
 
     if (mkfifo(SERVER_FIFO_PATH, OPEN_FIFO_PERMISSIONS)) {
-        prinf("Error creating server fifo.\n");
+        printf("Error creating server fifo.\n");
         return 1;
     }
 
@@ -186,7 +186,7 @@ void *process_order(void* arg)
                     tlv_reply.length = sizeof(tlv_reply.value.header);
                     break;
                 }
-                tlv_reply.value.header.ret_code = create_account(tlv_request.value.create);
+                tlv_reply.value.header.ret_code = create_account(tlv_request.value.create, thread_id);
                 tlv_reply.length = sizeof(tlv_reply.value.header);
                 break;
             }
