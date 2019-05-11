@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 
 #include "constants.h"
 #include "types.h"
@@ -12,6 +13,7 @@
 
 #include "bank_office.h"
 #include "requests_queue.h"
+#include "error_checker.h"
 
 int log_file_des;
 
@@ -27,10 +29,11 @@ pthread_mutex_t slots_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t requests_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char* argv[])
-{      
+{    
     int nr_bank_offices;
     int server_fifo_fd;
     tlv_request_t tlv_request;
+    srand((unsigned int) time(0) + getpid());
 
     if(argc != 3) {
         printf("Usage: %s <nr_bank_offices> <admin_password>\n", argv[0]);
@@ -55,6 +58,8 @@ int main(int argc, char* argv[])
 
     pthread_t bank_offices_tid[nr_bank_offices];
     int bank_office_id[nr_bank_offices];
+
+    unlink(SERVER_FIFO_PATH); //DELETE THIS
 
     if (mkfifo(SERVER_FIFO_PATH, OPEN_FIFO_PERMISSIONS)) {
         printf("Error creating server fifo.\n");
@@ -112,13 +117,16 @@ int main(int argc, char* argv[])
     close(log_file_des);
     close(server_fifo_fd);
     unlink(SERVER_FIFO_PATH);
-    
+
     return 0;
 }
 
 int create_admin_account(char* password)
 {
     req_create_account_t admin_account;
+
+    if(check_password_length(strlen(password))) return 1;
+
     admin_account.account_id = ADMIN_ACCOUNT_ID;
     admin_account.balance = ADMIN_ACCOUNT_BALANCE;
     strcpy(admin_account.password, password);

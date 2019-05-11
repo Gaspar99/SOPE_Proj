@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
         }
     }
     else {
-        write(server_fifo_fd, &tlv_request, tlv_request.length);
+        write(server_fifo_fd, &tlv_request, sizeof(tlv_request));
 
         //TODO count time
 
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
             printf("Error opening user fifo.\n");
             return 1;
         }
-
+        printf("1\n");
         read(user_fifo_fd, &tlv_reply, sizeof(tlv_reply));
     }
     

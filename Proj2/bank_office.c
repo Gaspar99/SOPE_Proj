@@ -20,7 +20,7 @@ int authenthicate_user(req_header_t req_header)
 
 ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id)
 {
-    char hash[HASH_LEN];
+    char hash[HASH_LEN + 1];
 
     if(get_account_index(req_create_account.account_id) != -1) return RC_ID_IN_USE;
     if (getHash(req_create_account.password, bank_accounts[current_num_accounts].salt, hash)) return RC_OTHER;
@@ -30,8 +30,9 @@ ret_code_t create_account(req_create_account_t req_create_account, int bank_offi
     getSalt(bank_accounts[current_num_accounts].salt);
     strcpy(bank_accounts[current_num_accounts].hash, hash);
 
-    current_num_accounts++;
     logAccountCreation(log_file_des, bank_office_id, &bank_accounts[current_num_accounts]);
+
+    current_num_accounts++;
     return RC_OK;
 }
 
@@ -84,13 +85,13 @@ int write_response(pid_t user_pid, tlv_reply_t tlv_reply, int bank_office_id)
 
 void getSalt(char* salt)
 {
-    int salt_num = 0x0;
+    char str[] = "0123456789abcdef";
 
-    for(int i = 0; i < SALT_LEN; i += 8) {
-        salt_num |= rand() & i;
+    for(int i = 0; i < SALT_LEN; i++) {
+        salt[i] = str[rand() % 16];
     }
 
-    sprintf(salt, "%d", salt_num);
+    salt[SALT_LEN] = '\0';
 }
 
 int getHash(char* password, char* salt, char* hash)
