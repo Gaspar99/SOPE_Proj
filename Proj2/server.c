@@ -27,7 +27,7 @@ pthread_mutex_t slots_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t requests_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char* argv[])
-{   
+{      
     int nr_bank_offices;
     int server_fifo_fd;
     tlv_request_t tlv_request;
@@ -48,11 +48,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-/*
     if(create_admin_account(argv[2])) {
         printf("Error: Unable to create admin account.\n");
         return 1; 
-    }*/
+    }
 
     pthread_t bank_offices_tid[nr_bank_offices];
     int bank_office_id[nr_bank_offices];
@@ -109,18 +108,11 @@ int main(int argc, char* argv[])
         logSyncMech(log_file_des, MAIN_THREAD_ID, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_PRODUCER, tlv_request.value.header.pid);
         pthread_mutex_unlock(&requests_lock);
     }
-    
-    /*
-    (void) argc;
-    (void) argv;
-    char hash[HASH_LEN];
-    char salt[] = "21312421";
-    char pass[] = "dhf9adj";
-    getHash(pass, salt, hash);*/
 
     close(log_file_des);
     close(server_fifo_fd);
     unlink(SERVER_FIFO_PATH);
+    
     return 0;
 }
 

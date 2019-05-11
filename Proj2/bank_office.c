@@ -114,42 +114,46 @@ int getHash(char* password, char* salt, char* hash)
     stdin_copy = dup(STDIN_FILENO);
 
     pid1 = fork();
-    if (pid1 > 0) {
+    if(pid1 == 0) {
+        close(fd1[READ]);
+        dup2(fd1[WRITE], STDOUT_FILENO);
+        execlp("echo", "echo", "-n", stringToHash, NULL);
+        perror("Error executing echo command.\n");
+        exit(1);
+    }
+    else if (pid1 > 0) {
         close(fd1[WRITE]);
 
         wait(&status);
         if(WEXITSTATUS(status) == 1) return 1;
-    }
-    else if (pid1 == 0) {
-        close(fd1[READ]);
 
         pid2 = fork();
-        if(pid2 > 0) {
+        if(pid2 == 0) {
+            close(fd2[READ]);
+            dup2(fd2[WRITE], STDOUT_FILENO);
+            dup2(fd1[READ], STDIN_FILENO);
+            execlp("sha256sum", "sha256sum", NULL);
+            perror("Error executing sha256sum command.\n");
+            exit(1);
+        }
+        else if(pid2 > 0) {
             close(fd2[WRITE]);
 
             wait(&status);
-            if(WEXITSTATUS(status) == 1) exit(1);
-        }
-        else if(pid2 == 0) {
-            close(fd2[READ]);
+            if(WEXITSTATUS(status) == 1) return 1;
 
-            dup2(fd2[WRITE], STDOUT_FILENO);
-            execlp("echo", "echo", "-n", stringToHash, NULL);
-            perror("Error obtaining hash");
-            exit(1);
+            if (read(fd2[READ], hash, HASH_LEN) == 0) {
+                perror("Error reading hash");
+                return 1;    
+            }
         }
         else {
-            perror("Error doing fork");
-            exit(1);
-        }
-        dup2(fd1[WRITE], STDOUT_FILENO);
-        dup2(fd2[READ], STDIN_FILENO);
-        execlp("sha256sum", "sha256sum", NULL);
-        perror("Error obtaining hash");
-        exit(1);
+             perror("Error doing fork.\n");
+            return 1;
+        }      
     }
     else {
-        perror("Error doing fork");
+        perror("Error doing fork.\n");
         return 1;
     }
 
@@ -158,10 +162,7 @@ int getHash(char* password, char* salt, char* hash)
     close(stdout_copy);
     close(stdin_copy);
 
-    if (read(fd1[READ], hash, HASH_LEN) == 0) {
-        perror("Error reading hash");
-        return 1;    
-    }
+    hash[HASH_LEN] = '\0';
 
     return 0;
 }
