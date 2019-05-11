@@ -130,7 +130,7 @@ int create_admin_account(char* password)
     admin_account.account_id = ADMIN_ACCOUNT_ID;
     admin_account.balance = ADMIN_ACCOUNT_BALANCE;
     strcpy(admin_account.password, password);
-    if(create_account(admin_account) != RC_OK) return 1; 
+    if(create_account(admin_account, MAIN_THREAD_ID) != RC_OK) return 1; 
 
     return 0;
 }
