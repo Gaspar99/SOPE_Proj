@@ -3,32 +3,54 @@
 bank_account_t bank_accounts[MAX_BANK_ACCOUNTS];
 int current_num_accounts = 0;
 
-extern int log_file_des;
-extern int nr_bank_offices_open;
+int log_file_des;
+int nr_bank_offices_open;
 bool down = false;
 
-int authenthicate_user(req_header_t req_header)
+pthread_mutex_t nr_bank_offices_open_lock = PTHREAD_MUTEX_INITIALIZER;
+
+int check_permissions(tlv_request_t tlv_request)
+{
+    switch(tlv_request.type) {
+        case OP_CREATE_ACCOUNT: 
+            return (tlv_request.value.header.account_id != ADMIN_ACCOUNT_ID);
+        case OP_BALANCE: 
+            return (tlv_request.value.header.account_id == ADMIN_ACCOUNT_ID);
+        case OP_TRANSFER: 
+            return (tlv_request.value.header.account_id == ADMIN_ACCOUNT_ID);
+        case OP_SHUTDOWN:
+            return (tlv_request.value.header.account_id != ADMIN_ACCOUNT_ID);
+        default:
+            return 1;
+    }
+}
+
+ret_code_t authenthicate_user(req_header_t req_header)
 {
     int account_index;
-    char hash[HASH_LEN];
+    char hash[HASH_LEN + 1];
 
-    if( (account_index = get_account_index(req_header.account_id)) == -1) return 1;
-    if(getHash(req_header.password, bank_accounts[account_index].salt, hash)) return 1;
+    if( (account_index = get_account_index(req_header.account_id)) == -1) return RC_ID_NOT_FOUND;
+    if(getHash(req_header.password, bank_accounts[account_index].salt, hash)) return RC_OTHER;
+    if(strcmp(hash, bank_accounts[account_index].hash)) return RC_LOGIN_FAIL;
 
-    return strcmp(hash, bank_accounts[account_index].hash);
+    return RC_OK;
 }
 
 ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id)
 {
     char hash[HASH_LEN + 1];
+    char salt[SALT_LEN + 1];
 
     if(get_account_index(req_create_account.account_id) != -1) return RC_ID_IN_USE;
-    if (getHash(req_create_account.password, bank_accounts[current_num_accounts].salt, hash)) return RC_OTHER;
+
+    getSalt(salt);
+    if (getHash(req_create_account.password, salt, hash)) return RC_OTHER;
 
     bank_accounts[current_num_accounts].account_id = req_create_account.account_id;
     bank_accounts[current_num_accounts].balance = req_create_account.balance;
-    getSalt(bank_accounts[current_num_accounts].salt);
     strcpy(bank_accounts[current_num_accounts].hash, hash);
+    strcpy(bank_accounts[current_num_accounts].salt, salt);
 
     logAccountCreation(log_file_des, bank_office_id, &bank_accounts[current_num_accounts]);
 
@@ -56,7 +78,7 @@ ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer)
 
 ret_code_t shutdown(rep_shutdown_t *rep_shutdown)
 {
-    down = true;
+    turnDown();
 
     if( chmod(SERVER_FIFO_PATH, READ_ONLY_PERMISSIONS)) return RC_OTHER;
 
@@ -77,7 +99,7 @@ int write_response(pid_t user_pid, tlv_reply_t tlv_reply, int bank_office_id)
         return 1;
     }
 
-    write(fifo_fd, &tlv_reply, tlv_reply.length);
+    write(fifo_fd, &tlv_reply, sizeof(tlv_reply));
     logReply(log_file_des, bank_office_id, &tlv_reply);
 
     return 0;
@@ -143,13 +165,23 @@ int getHash(char* password, char* salt, char* hash)
             wait(&status);
             if(WEXITSTATUS(status) == 1) return 1;
 
+            dup2(stdout_copy, STDOUT_FILENO);
+            dup2(stdin_copy, STDIN_FILENO);
+
             if (read(fd2[READ], hash, HASH_LEN) == 0) {
                 perror("Error reading hash");
                 return 1;    
             }
+
+            hash[HASH_LEN] = '\0';
+            
+            close(stdout_copy);
+            close(stdin_copy);
+
+            return 0;
         }
         else {
-             perror("Error doing fork.\n");
+            perror("Error doing fork.\n");
             return 1;
         }      
     }
@@ -157,15 +189,6 @@ int getHash(char* password, char* salt, char* hash)
         perror("Error doing fork.\n");
         return 1;
     }
-
-    dup2(stdout_copy, STDOUT_FILENO);
-    dup2(stdin_copy, STDIN_FILENO);
-    close(stdout_copy);
-    close(stdin_copy);
-
-    hash[HASH_LEN] = '\0';
-
-    return 0;
 }
 
 int get_account_index(uint32_t account_id)
@@ -181,4 +204,60 @@ int get_account_index(uint32_t account_id)
 bool isDown()
 {
     return down;
+}
+
+void turnDown()
+{
+    down = true;
+}
+
+void inc_nr_bank_offices_open()
+{
+    nr_bank_offices_open++;
+}
+
+void dec_nr_bank_offices_open(int bank_office_id, pid_t user_pid)
+{
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_PRODUCER, user_pid);
+    pthread_mutex_lock(&nr_bank_offices_open_lock);
+
+    nr_bank_offices_open--;
+
+    pthread_mutex_unlock(&nr_bank_offices_open_lock);
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_PRODUCER, user_pid);
+}
+
+bool check_nr_bank_offices()
+{
+    bool result;
+
+    logSyncMech(get_log_file_des(), MAIN_THREAD_ID, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_PRODUCER, UNKNOWN_ID);
+    pthread_mutex_lock(&nr_bank_offices_open_lock);
+
+    result = (nr_bank_offices_open > 0);
+
+    pthread_mutex_unlock(&nr_bank_offices_open_lock);
+    logSyncMech(get_log_file_des(), MAIN_THREAD_ID, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_PRODUCER, UNKNOWN_ID);
+
+    return result;
+}
+
+int open_log_file()
+{
+    if( (log_file_des = open(SERVER_LOGFILE, O_WRONLY | O_CREAT | O_APPEND | O_TRUNC, LOG_FILE_PERMISSIONS)) == -1 ) {
+        printf("Error: could not open server log file.\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+int get_log_file_des()
+{
+    return log_file_des;
+}
+
+void close_log_file()
+{
+    close(log_file_des);
 }

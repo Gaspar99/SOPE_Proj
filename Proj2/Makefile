@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror -D_REENTRANT -pthread
+CFLAGS=-Wall -Wextra -Werror -D_REENTRANT -pthread -lrt
 
 HEADERS= sope.h types.h constants.h error_checker.h tlv_request_filler.h bank_office.h requests_queue.h
 OBJS_SRV= log.c server.c bank_office.c requests_queue.c error_checker.c

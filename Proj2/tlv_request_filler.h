@@ -16,9 +16,5 @@ int get_req_header(char* argv[], req_header_t* req_header);
 int get_req_create_account(char* op_args, req_create_account_t* req_create_account);
 int get_req_transfer(char* op_args, req_transfer_t* req_transfer);
 
-//Auxiliary functions
 int split_string(char* string, char* array[]);
-
-//Restraints checkers
-
 

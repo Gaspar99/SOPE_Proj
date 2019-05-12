@@ -18,6 +18,7 @@ int main(int argc, char* argv[])
     char user_fifo_path[USER_FIFO_PATH_LEN];
     int server_fifo_fd, user_fifo_fd;
     int log_file_fd;
+    pid_t user_pid = getpid();
     
     if(argc != 6)
     {
@@ -33,7 +34,7 @@ int main(int argc, char* argv[])
     if(get_tvl_request(argv, &tlv_request)) return 1;
     logRequest(log_file_fd, getpid(), &tlv_request);
 
-    sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, (int) getpid());
+    sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, user_pid);
     if( mkfifo(user_fifo_path, OPEN_FIFO_PERMISSIONS) ) {
         printf("Error creating user fifo.\n");
         return 1;
@@ -66,6 +67,7 @@ int main(int argc, char* argv[])
     }
     else {
         write(server_fifo_fd, &tlv_request, sizeof(tlv_request));
+        close(server_fifo_fd);
 
         //TODO count time
 
@@ -74,11 +76,10 @@ int main(int argc, char* argv[])
             printf("Error opening user fifo.\n");
             return 1;
         }
-        printf("1\n");
         read(user_fifo_fd, &tlv_reply, sizeof(tlv_reply));
     }
-    
-    logReply(log_file_fd, getpid(), &tlv_reply);
+
+    logReply(log_file_fd, user_pid, &tlv_reply); 
 
     close(log_file_fd);
     close(user_fifo_fd);
