@@ -46,7 +46,7 @@ ret_code_t create_account(req_create_account_t req_create_account, int bank_offi
     pthread_mutex_lock(&bank_accounts_lock);
 
     logSyncDelay(get_log_file_des(), bank_office_id, account_id, op_delay);
-    sleep(op_delay / 1000);
+    usleep(op_delay * 1000);
 
     getSalt(salt);
     if (getHash(req_create_account.password, salt, hash)) ret_code = RC_OTHER;
@@ -77,7 +77,7 @@ ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance, 
     pthread_mutex_lock(&bank_accounts_lock);
 
     logSyncDelay(get_log_file_des(), bank_office_id, req_header.account_id, req_header.op_delay_ms);
-    sleep(req_header.op_delay_ms / 1000);
+    usleep(req_header.op_delay_ms * 1000);
 
     account_index = get_account_index(req_header.account_id);
     if(account_index == -1) ret_code = RC_ID_NOT_FOUND;
@@ -99,7 +99,7 @@ ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_tr
     pthread_mutex_lock(&bank_accounts_lock);
 
     logSyncDelay(get_log_file_des(), bank_office_id, req_header.account_id, req_header.op_delay_ms);
-    sleep(req_header.op_delay_ms / 1000);
+    usleep(req_header.op_delay_ms * 1000);
 
     if(req_header.account_id == req_transfer.account_id) ret_code = RC_SAME_ID;
     if( (account1_index = get_account_index(req_header.account_id)) == -1) ret_code = RC_ID_NOT_FOUND;
@@ -129,7 +129,7 @@ ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_tr
 ret_code_t shutdown(rep_shutdown_t *rep_shutdown, int active_offices, int bank_office_id, uint32_t account_id, uint32_t op_delay)
 {
     logSyncDelay(get_log_file_des(), bank_office_id, account_id, op_delay);
-    sleep(op_delay / 1000);
+    usleep(op_delay * 1000);
 
     if( chmod(SERVER_FIFO_PATH, READ_ONLY_PERMISSIONS)) return RC_OTHER;
 

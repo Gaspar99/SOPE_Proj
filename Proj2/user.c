@@ -102,11 +102,10 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }
-
+        alarm(0);
         read(user_fifo_fd, &tlv_reply.type, sizeof(op_type_t));
         read(user_fifo_fd, &tlv_reply.length, sizeof(uint32_t));
         read(user_fifo_fd, &tlv_reply.value, tlv_reply.length);
-        alarm(0);
     }
 
     EXIT: logReply(log_file_fd, user_pid, &tlv_reply);

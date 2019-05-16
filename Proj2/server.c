@@ -198,7 +198,7 @@ void *process_order(void* arg)
                 break;
             }
             case OP_SHUTDOWN: {
-                tlv_reply.value.header.ret_code = shutdown(&tlv_reply.value.shutdown, active_offices, thread_id,
+                tlv_reply.value.header.ret_code = shutdown(&tlv_reply.value.shutdown, active_offices - 1, thread_id,
                                                 tlv_request.value.header.account_id, tlv_request.value.header.op_delay_ms);
                 tlv_reply.length += sizeof(tlv_reply.value.shutdown);
 
