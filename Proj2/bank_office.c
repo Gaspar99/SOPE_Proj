@@ -2,12 +2,7 @@
 
 bank_account_t bank_accounts[MAX_BANK_ACCOUNTS];
 int current_num_accounts = 0;
-
-int log_file_des;
-int nr_bank_offices_open;
-bool down = false;
-
-pthread_mutex_t nr_bank_offices_open_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t bank_accounts_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int check_permissions(tlv_request_t tlv_request)
 {
@@ -29,65 +24,121 @@ ret_code_t authenthicate_user(req_header_t req_header)
 {
     int account_index;
     char hash[HASH_LEN + 1];
+    ret_code_t ret_code = RC_OK;
 
-    if( (account_index = get_account_index(req_header.account_id)) == -1) return RC_ID_NOT_FOUND;
-    if(getHash(req_header.password, bank_accounts[account_index].salt, hash)) return RC_OTHER;
-    if(strcmp(hash, bank_accounts[account_index].hash)) return RC_LOGIN_FAIL;
+    account_index = get_account_index(req_header.account_id);
 
-    return RC_OK;
+    if(getHash(req_header.password, bank_accounts[account_index].salt, hash)) ret_code = RC_OTHER;
+    if( account_index == -1) ret_code = RC_ID_NOT_FOUND;
+    if(strcmp(hash, bank_accounts[account_index].hash)) ret_code = RC_LOGIN_FAIL;
+
+    return ret_code;
 }
 
-ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id)
+ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id, uint32_t account_id, uint32_t op_delay)
 {
+    bank_account_t bank_account;
     char hash[HASH_LEN + 1];
     char salt[SALT_LEN + 1];
+    ret_code_t ret_code = RC_OK;
 
-    if(get_account_index(req_create_account.account_id) != -1) return RC_ID_IN_USE;
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_ACCOUNT, req_create_account.account_id);
+    pthread_mutex_lock(&bank_accounts_lock);
+
+    logSyncDelay(get_log_file_des(), bank_office_id, account_id, op_delay);
+    sleep(op_delay / 1000);
 
     getSalt(salt);
-    if (getHash(req_create_account.password, salt, hash)) return RC_OTHER;
+    if (getHash(req_create_account.password, salt, hash)) ret_code = RC_OTHER;
+    if(get_account_index(req_create_account.account_id) != -1) ret_code = RC_ID_IN_USE;
 
-    bank_accounts[current_num_accounts].account_id = req_create_account.account_id;
-    bank_accounts[current_num_accounts].balance = req_create_account.balance;
-    strcpy(bank_accounts[current_num_accounts].hash, hash);
-    strcpy(bank_accounts[current_num_accounts].salt, salt);
+    if(ret_code == RC_OK) {
+        bank_account.account_id = req_create_account.account_id;
+        bank_account.balance = req_create_account.balance;
+        strcpy(bank_account.hash, hash);
+        strcpy(bank_account.salt, salt);
 
-    logAccountCreation(log_file_des, bank_office_id, &bank_accounts[current_num_accounts]);
+        bank_accounts[current_num_accounts++] = bank_account;
+        logAccountCreation(get_log_file_des(), bank_office_id, &bank_account);
+    }
 
-    current_num_accounts++;
-    return RC_OK;
+    pthread_mutex_unlock(&bank_accounts_lock);
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_ACCOUNT, req_create_account.account_id);
+
+    return ret_code;
 }
 
-ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance)
+ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance, int bank_office_id)
 {
-    (void) req_header;
-    (void) rep_balance;
+    ret_code_t ret_code = RC_OK;
+    int account_index;
 
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_ACCOUNT, req_header.account_id);
+    pthread_mutex_lock(&bank_accounts_lock);
 
-    return RC_OK;
+    logSyncDelay(get_log_file_des(), bank_office_id, req_header.account_id, req_header.op_delay_ms);
+    sleep(req_header.op_delay_ms / 1000);
+
+    account_index = get_account_index(req_header.account_id);
+    if(account_index == -1) ret_code = RC_ID_NOT_FOUND;
+    rep_balance->balance = bank_accounts[account_index].balance;
+
+    pthread_mutex_unlock(&bank_accounts_lock);
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_ACCOUNT, req_header.account_id);
+
+    return ret_code;
 }
 
-ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer)
-{
-    (void) req_transfer;
-    (void) rep_transfer;
+ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_transfer_t *rep_transfer, int bank_office_id)
+{   
+    ret_code_t ret_code = RC_OK;
+    int account1_index, account2_index;
+    unsigned int balance1, balance2;
 
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_ACCOUNT, req_header.account_id);
+    pthread_mutex_lock(&bank_accounts_lock);
+
+    logSyncDelay(get_log_file_des(), bank_office_id, req_header.account_id, req_header.op_delay_ms);
+    sleep(req_header.op_delay_ms / 1000);
+
+    if(req_header.account_id == req_transfer.account_id) ret_code = RC_SAME_ID;
+    if( (account1_index = get_account_index(req_header.account_id)) == -1) ret_code = RC_ID_NOT_FOUND;
+    if( (account2_index = get_account_index(req_transfer.account_id)) == -1) ret_code = RC_ID_NOT_FOUND;
+
+    balance1 = bank_accounts[account1_index].balance - req_transfer.amount;
+    balance2 = bank_accounts[account2_index].balance + req_transfer.amount;
+
+    if(balance2 > MAX_BALANCE) ret_code = RC_TOO_HIGH;
+    if(balance1 < MIN_BALANCE) ret_code = RC_NO_FUNDS;
+
+    if(ret_code == RC_OK) {
+        bank_accounts[account1_index].balance = balance1;
+        bank_accounts[account2_index].balance = balance2;
+        rep_transfer->balance = balance1;
+    }
+    else {
+        rep_transfer->balance = req_transfer.amount;
+    }
     
-    return RC_OK;
+    pthread_mutex_unlock(&bank_accounts_lock);
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_ACCOUNT, req_header.account_id);
+    
+    return ret_code;
 }
 
-ret_code_t shutdown(rep_shutdown_t *rep_shutdown)
+ret_code_t shutdown(rep_shutdown_t *rep_shutdown, int active_offices, int bank_office_id, uint32_t account_id, uint32_t op_delay)
 {
-    turnDown();
+    logSyncDelay(get_log_file_des(), bank_office_id, account_id, op_delay);
+    sleep(op_delay / 1000);
 
     if( chmod(SERVER_FIFO_PATH, READ_ONLY_PERMISSIONS)) return RC_OTHER;
 
-    rep_shutdown->active_offices = nr_bank_offices_open;
+    rep_shutdown->active_offices = active_offices;
 
     return RC_OK;
 }
 
-int write_response(pid_t user_pid, tlv_reply_t tlv_reply, int bank_office_id)
+int write_response(pid_t user_pid, tlv_reply_t tlv_reply, uint32_t bank_office_id)
 {
     char user_fifo_path[USER_FIFO_PATH_LEN];
     int fifo_fd;
@@ -95,12 +146,15 @@ int write_response(pid_t user_pid, tlv_reply_t tlv_reply, int bank_office_id)
     sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, (int) user_pid);
 
     if ( (fifo_fd = open(user_fifo_path, O_WRONLY)) == -1) {
-        printf("Error opening user fifo.\n");
-        return 1;
+        tlv_reply.value.header.ret_code = RC_USR_DOWN;
+    }
+    else {
+        write(fifo_fd, &tlv_reply.type, sizeof(op_type_t));
+        write(fifo_fd, &tlv_reply.length, sizeof(uint32_t));
+        write(fifo_fd, &tlv_reply.value,tlv_reply.length); 
     }
 
-    write(fifo_fd, &tlv_reply, sizeof(tlv_reply));
-    logReply(log_file_des, bank_office_id, &tlv_reply);
+    logReply(get_log_file_des(), bank_office_id, &tlv_reply);
 
     return 0;
 }
@@ -201,63 +255,7 @@ int get_account_index(uint32_t account_id)
     return -1;
 }
 
-bool isDown()
+void destroy_bank_accounts_lock()
 {
-    return down;
-}
-
-void turnDown()
-{
-    down = true;
-}
-
-void inc_nr_bank_offices_open()
-{
-    nr_bank_offices_open++;
-}
-
-void dec_nr_bank_offices_open(int bank_office_id, pid_t user_pid)
-{
-    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_PRODUCER, user_pid);
-    pthread_mutex_lock(&nr_bank_offices_open_lock);
-
-    nr_bank_offices_open--;
-
-    pthread_mutex_unlock(&nr_bank_offices_open_lock);
-    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_PRODUCER, user_pid);
-}
-
-bool check_nr_bank_offices()
-{
-    bool result;
-
-    logSyncMech(get_log_file_des(), MAIN_THREAD_ID, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_PRODUCER, UNKNOWN_ID);
-    pthread_mutex_lock(&nr_bank_offices_open_lock);
-
-    result = (nr_bank_offices_open > 0);
-
-    pthread_mutex_unlock(&nr_bank_offices_open_lock);
-    logSyncMech(get_log_file_des(), MAIN_THREAD_ID, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_PRODUCER, UNKNOWN_ID);
-
-    return result;
-}
-
-int open_log_file()
-{
-    if( (log_file_des = open(SERVER_LOGFILE, O_WRONLY | O_CREAT | O_APPEND | O_TRUNC, LOG_FILE_PERMISSIONS)) == -1 ) {
-        printf("Error: could not open server log file.\n");
-        return 1;
-    }
-
-    return 0;
-}
-
-int get_log_file_des()
-{
-    return log_file_des;
-}
-
-void close_log_file()
-{
-    close(log_file_des);
+    pthread_mutex_destroy(&bank_accounts_lock);
 }

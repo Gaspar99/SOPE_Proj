@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -9,6 +10,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>
+#include <semaphore.h>
+#include <signal.h>
 
 #include "constants.h"
 #include "types.h"
@@ -17,9 +20,9 @@
 #include "bank_office.h"
 #include "requests_queue.h"
 #include "error_checker.h"
-
+#include "server_log_file.h"
 
 int create_admin_account(char* password);
 void *process_order(void* arg);
-bool check_waiting_requests(int bank_office_id);
+void sigusr1_handler();
 

@@ -22,7 +22,7 @@ void put_request(tlv_request_t tlv_request)
 
 void get_request(tlv_request_t *tlv_request, int bank_office_id)
 {
-    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_CONSUMER, tlv_request->value.header.pid);
+    logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_CONSUMER, UNKNOWN_ID);
     pthread_mutex_lock(&buffer_lock);
     
     *tlv_request = request_queue[front++];
@@ -33,5 +33,10 @@ void get_request(tlv_request_t *tlv_request, int bank_office_id)
 
     pthread_mutex_unlock(&buffer_lock);
     logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_UNLOCK, SYNC_ROLE_CONSUMER, tlv_request->value.header.pid);
+}
+
+void destroy_buffer_lock()
+{
+    pthread_mutex_destroy(&buffer_lock);
 }
 

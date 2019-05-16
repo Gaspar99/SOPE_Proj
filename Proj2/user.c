@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "constants.h"
 #include "types.h"
@@ -11,14 +13,19 @@
 
 #include "tlv_request_filler.h"
 
+bool sigalarm = false;
+
+void sigalarm_handler() {
+    sigalarm = true;
+}
+
 int main(int argc, char* argv[])
 {
     tlv_request_t tlv_request;
     tlv_reply_t tlv_reply;
-    char user_fifo_path[USER_FIFO_PATH_LEN];
-    int server_fifo_fd, user_fifo_fd;
-    int log_file_fd;
     pid_t user_pid = getpid();
+    int server_fifo_fd, user_fifo_fd, log_file_fd;
+    char user_fifo_path[USER_FIFO_PATH_LEN];
     
     if(argc != 6)
     {
@@ -31,14 +38,20 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if(get_tvl_request(argv, &tlv_request)) return 1;
-    logRequest(log_file_fd, getpid(), &tlv_request);
-
     sprintf(user_fifo_path, "%s%d", USER_FIFO_PATH_PREFIX, user_pid);
     if( mkfifo(user_fifo_path, OPEN_FIFO_PERMISSIONS) ) {
         printf("Error creating user fifo.\n");
         return 1;
     }
+
+    if(get_tvl_request(argv, &tlv_request)) return 1;
+    logRequest(log_file_fd, user_pid, &tlv_request);
+
+    struct sigaction action;
+    action.sa_handler = sigalarm_handler;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    sigaction(SIGALRM, &action, NULL);
 
     //Open server fifo to write tlv request
     if ( (server_fifo_fd = open(SERVER_FIFO_PATH, O_WRONLY)) == -1) { //Server down
@@ -66,25 +79,43 @@ int main(int argc, char* argv[])
         }
     }
     else {
-        write(server_fifo_fd, &tlv_request, sizeof(tlv_request));
+        write(server_fifo_fd, &tlv_request.type, sizeof(op_type_t));
+        write(server_fifo_fd, &tlv_request.length, sizeof(uint32_t));
+        write(server_fifo_fd, &tlv_request.value, tlv_request.length);
+
+        //write(server_fifo_fd, &tlv_request, sizeof(tlv_request));
         close(server_fifo_fd);
 
-        //TODO count time
+        alarm(FIFO_TIMEOUT_SECS);
 
         //Open user fifo to read response
         if ( (user_fifo_fd = open(user_fifo_path, O_RDONLY)) == -1) {
-            printf("Error opening user fifo.\n");
-            return 1;
+            if(sigalarm) {
+                tlv_reply.type = tlv_request.type;
+                tlv_reply.value.header.account_id = tlv_request.value.header.account_id;
+                tlv_reply.value.header.ret_code = RC_SRV_TIMEOUT;
+                tlv_reply.length = sizeof(tlv_reply.value.header);
+                goto EXIT;
+            }
+            else {
+                printf("Error opening user fifo.\n");
+                return 1;
+            }
         }
-        read(user_fifo_fd, &tlv_reply, sizeof(tlv_reply));
+
+        read(user_fifo_fd, &tlv_reply.type, sizeof(op_type_t));
+        read(user_fifo_fd, &tlv_reply.length, sizeof(uint32_t));
+        read(user_fifo_fd, &tlv_reply.value, tlv_reply.length);
+        alarm(0);
     }
 
-    logReply(log_file_fd, user_pid, &tlv_reply); 
+    EXIT: logReply(log_file_fd, user_pid, &tlv_reply);
 
     close(log_file_fd);
     close(user_fifo_fd);
     unlink(user_fifo_path);
-
+    
     return 0;
 }
+
 

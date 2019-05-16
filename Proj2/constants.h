@@ -43,3 +43,6 @@
 
 #define READ 0
 #define WRITE 1
+
+#define SHARED 0
+#define EMPTY_SEM_INIT_VALUE 0
