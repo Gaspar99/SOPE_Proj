@@ -60,19 +60,39 @@ ret_code_t create_account(req_create_account_t req_create_account, int bank_offi
 
 ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance)
 {
-    (void) req_header;
-    (void) rep_balance;
-
-
-    return RC_OK;
+    int index = get_account_index(req_header.account_id);
+    if(index==-1)
+    return RC_ID_NOT_FOUND;
+    else
+    {
+         rep_balance->balance=bank_accounts[index].balance;
+        return RC_OK;
+    }
+    
 }
 
-ret_code_t transfer(req_transfer_t req_transfer, rep_transfer_t *rep_transfer)
+ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_transfer_t *rep_transfer)
 {
-    (void) req_transfer;
-    (void) rep_transfer;
+    int index1= get_account_index(req_transfer.account_id);
+    if(index1==-1)
+    return RC_ID_NOT_FOUND;
 
+    int balance= bank_accounts[index1].balance;
+    if(balance+req_transfer.amount>MAX_BALANCE)
+    return RC_TOO_HIGH;
+
+    int index2=get_account_index(req_header.account_id);
+    if(index2==-1)
+    return RC_ID_NOT_FOUND;
+
+    balance=bank_accounts[index2].balance;
+    if(balance-req_transfer.amount<1)
+    return RC_NO_FUNDS;
     
+    bank_accounts[index2].balance=bank_accounts[index2].balance-req_transfer.amount;
+    bank_accounts[index1].balance=bank_accounts[index1].balance+req_transfer.amount;
+    rep_transfer->balance=bank_accounts[index1].balance;
+
     return RC_OK;
 }
 
