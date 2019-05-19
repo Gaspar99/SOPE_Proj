@@ -17,12 +17,13 @@
 #include "types.h"
 #include "sope.h"
 
-#include "bank_office.h"
+#include "bank_operations.h"
 #include "requests_queue.h"
 #include "error_checker.h"
 #include "server_log_file.h"
 
 int create_admin_account(char* password);
-void *process_order(void* arg);
+void *bank_office(void* arg);
+void process_request(tlv_request_t tlv_request, tlv_reply_t *tlv_reply, int thread_id);
 void sigusr1_handler();
 

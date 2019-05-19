@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
     
     for(int i = 1; i <= nr_bank_offices; i++) {
         bank_office_id[i] = i;
-        if(pthread_create(&bank_offices_tid[i], NULL, process_order, (void*) &bank_office_id[i])) {
+        if(pthread_create(&bank_offices_tid[i], NULL, bank_office, (void*) &bank_office_id[i])) {
             printf("Error creating bank office thread.\n");
             return 1;
         }
@@ -130,12 +130,12 @@ int create_admin_account(char* password)
     admin_account.account_id = ADMIN_ACCOUNT_ID;
     admin_account.balance = ADMIN_ACCOUNT_BALANCE;
     strcpy(admin_account.password, password);
-    if(create_account(admin_account, MAIN_THREAD_ID, ADMIN_ACCOUNT_ID, 0) != RC_OK) return 1; 
+    if(create_account(admin_account, MAIN_THREAD_ID, 0) != RC_OK) return 1; 
 
     return 0;
 }
 
-void *process_order(void* arg)
+void *bank_office(void* arg)
 {
     int thread_id = *(int *) arg;
     int sem_empty_value, sem_full_value;
@@ -161,69 +161,60 @@ void *process_order(void* arg)
         logSyncMechSem(get_log_file_des(), thread_id, SYNC_OP_SEM_POST, SYNC_ROLE_CONSUMER, tlv_request.value.header.pid, sem_full_value);
 
         logRequest(get_log_file_des(), thread_id, &tlv_request);
+
         active_offices++;
-
-        tlv_reply.type = tlv_request.type;
-        tlv_reply.value.header.account_id = tlv_request.value.header.account_id;
-        tlv_reply.length = sizeof(tlv_reply.value.header);
-
-        if( (tlv_reply.value.header.ret_code = authenthicate_user(tlv_request.value.header)) != RC_OK) {
-            write_response(tlv_request.value.header.pid, tlv_reply, thread_id);
-            active_offices--;
-            continue; 
-        }
-
-        if(check_permissions(tlv_request)) {
-            tlv_reply.value.header.ret_code = RC_OP_NALLOW;
-            write_response(tlv_request.value.header.pid, tlv_reply, thread_id);
-            active_offices--;
-            continue;
-        }   
-
-        switch(tlv_request.type) {
-            case OP_CREATE_ACCOUNT: {
-                tlv_reply.value.header.ret_code = create_account(tlv_request.value.create, thread_id, 
-                                                tlv_request.value.header.account_id, tlv_request.value.header.op_delay_ms);
-                break;
-            }
-            case OP_BALANCE: {
-                tlv_reply.value.header.ret_code = balance_inquiry(tlv_request.value.header, &tlv_reply.value.balance, thread_id);
-                tlv_reply.length += sizeof(tlv_reply.value.balance);
-                break;
-            }
-            case OP_TRANSFER: {
-                tlv_reply.value.header.ret_code = transfer(tlv_request.value.header, tlv_request.value.transfer, 
-                                                &tlv_reply.value.transfer, thread_id);
-                tlv_reply.length += sizeof(tlv_reply.value.transfer);
-                break;
-            }
-            case OP_SHUTDOWN: {
-                tlv_reply.value.header.ret_code = shutdown(&tlv_reply.value.shutdown, active_offices - 1, thread_id,
-                                                tlv_request.value.header.account_id, tlv_request.value.header.op_delay_ms);
-                tlv_reply.length += sizeof(tlv_reply.value.shutdown);
-
-                //Change server fifo flags to not block
-                int flags = fcntl(server_fifo_fd, F_GETFL, 0);
-                flags |= O_NONBLOCK;
-                fcntl(server_fifo_fd, F_SETFL, flags);
-
-                kill(getpid(), SIGUSR1); //To unblock main thread from read
-
-                break;
-            }
-            default: {
-                tlv_reply.value.header.ret_code = RC_OTHER;
-                break;
-            }
-        }
-
+        process_request(tlv_request, &tlv_reply, thread_id);
         write_response(tlv_request.value.header.pid, tlv_reply, thread_id);
-
         active_offices--;
     }
 
     logBankOfficeClose(get_log_file_des(), thread_id, pthread_self());
     return NULL;
+}
+
+void process_request(tlv_request_t tlv_request, tlv_reply_t *tlv_reply, int thread_id)
+{
+    tlv_reply->type = tlv_request.type;
+    tlv_reply->value.header.account_id = tlv_request.value.header.account_id;
+    tlv_reply->length = sizeof(tlv_reply->value.header);
+
+    if( (tlv_reply->value.header.ret_code = authenthicate_user(tlv_request.value.header)) != RC_OK) {
+        return;
+    }
+
+    if(check_permissions(tlv_request)) {
+        tlv_reply->value.header.ret_code = RC_OP_NALLOW;
+        return;
+    }   
+
+    switch(tlv_request.type) {
+        case OP_CREATE_ACCOUNT: {
+            tlv_reply->value.header.ret_code = create_account(tlv_request.value.create, thread_id, 
+                                            tlv_request.value.header.op_delay_ms);
+            break;
+        }
+        case OP_BALANCE: {
+                tlv_reply->value.header.ret_code = balance_inquiry(tlv_request.value.header, &tlv_reply->value.balance, thread_id);
+                tlv_reply->length += sizeof(tlv_reply->value.balance);
+                break;
+            }
+        case OP_TRANSFER: {
+            tlv_reply->value.header.ret_code = transfer(tlv_request.value.header, tlv_request.value.transfer, 
+                                            &tlv_reply->value.transfer, thread_id);
+            tlv_reply->length += sizeof(tlv_reply->value.transfer);
+            break;
+        }
+        case OP_SHUTDOWN: {
+            tlv_reply->value.header.ret_code = shutdown(&tlv_reply->value.shutdown, active_offices - 1, thread_id, server_fifo_fd,
+                                            tlv_request.value.header.op_delay_ms);
+            tlv_reply->length += sizeof(tlv_reply->value.shutdown);
+            break;
+        }
+        default: {
+            tlv_reply->value.header.ret_code = RC_OTHER;
+            break;
+        }
+    }
 }
 
 void sigusr1_handler() {}

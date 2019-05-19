@@ -83,7 +83,6 @@ int main(int argc, char* argv[])
         write(server_fifo_fd, &tlv_request.length, sizeof(uint32_t));
         write(server_fifo_fd, &tlv_request.value, tlv_request.length);
 
-        //write(server_fifo_fd, &tlv_request, sizeof(tlv_request));
         close(server_fifo_fd);
 
         alarm(FIFO_TIMEOUT_SECS);

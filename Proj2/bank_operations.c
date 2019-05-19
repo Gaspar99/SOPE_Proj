@@ -1,4 +1,4 @@
-#include "bank_office.h"
+#include "bank_operations.h"
 
 bank_account_t bank_accounts[MAX_BANK_ACCOUNTS];
 int current_num_accounts = 0;
@@ -35,7 +35,7 @@ ret_code_t authenthicate_user(req_header_t req_header)
     return ret_code;
 }
 
-ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id, uint32_t account_id, uint32_t op_delay)
+ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id, uint32_t op_delay)
 {
     bank_account_t bank_account;
     char hash[HASH_LEN + 1];
@@ -45,7 +45,7 @@ ret_code_t create_account(req_create_account_t req_create_account, int bank_offi
     logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_ACCOUNT, req_create_account.account_id);
     pthread_mutex_lock(&bank_accounts_lock);
 
-    logSyncDelay(get_log_file_des(), bank_office_id, account_id, op_delay);
+    logSyncDelay(get_log_file_des(), bank_office_id, req_create_account.account_id, op_delay);
     usleep(op_delay * 1000);
 
     getSalt(salt);
@@ -93,7 +93,7 @@ ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_tr
 {   
     ret_code_t ret_code = RC_OK;
     int account1_index, account2_index;
-    unsigned int balance1, balance2;
+    int balance1, balance2;
 
     logSyncMech(get_log_file_des(), bank_office_id, SYNC_OP_MUTEX_LOCK, SYNC_ROLE_ACCOUNT, req_header.account_id);
     pthread_mutex_lock(&bank_accounts_lock);
@@ -108,8 +108,8 @@ ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_tr
     balance1 = bank_accounts[account1_index].balance - req_transfer.amount;
     balance2 = bank_accounts[account2_index].balance + req_transfer.amount;
 
-    if(balance2 > MAX_BALANCE) ret_code = RC_TOO_HIGH;
-    if(balance1 < MIN_BALANCE) ret_code = RC_NO_FUNDS;
+    if(balance2 > (int) MAX_BALANCE) ret_code = RC_TOO_HIGH;
+    if(balance1 < (int) MIN_BALANCE) ret_code = RC_NO_FUNDS;
 
     if(ret_code == RC_OK) {
         bank_accounts[account1_index].balance = balance1;
@@ -126,15 +126,21 @@ ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_tr
     return ret_code;
 }
 
-ret_code_t shutdown(rep_shutdown_t *rep_shutdown, int active_offices, int bank_office_id, uint32_t account_id, uint32_t op_delay)
+ret_code_t shutdown(rep_shutdown_t *rep_shutdown, int active_offices, int bank_office_id, int server_fifo, uint32_t op_delay)
 {
-    logSyncDelay(get_log_file_des(), bank_office_id, account_id, op_delay);
+    logSyncDelay(get_log_file_des(), bank_office_id, MAIN_THREAD_ID, op_delay);
     usleep(op_delay * 1000);
 
     if( chmod(SERVER_FIFO_PATH, READ_ONLY_PERMISSIONS)) return RC_OTHER;
 
-    rep_shutdown->active_offices = active_offices;
+    //Change server fifo flags to not block
+    int flags = fcntl(server_fifo, F_GETFL, 0);
+    flags |= O_NONBLOCK;
+    fcntl(server_fifo, F_SETFL, flags);
 
+    kill(getpid(), SIGUSR1); //To unblock main thread from read
+
+    rep_shutdown->active_offices = active_offices;
     return RC_OK;
 }
 

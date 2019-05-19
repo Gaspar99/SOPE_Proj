@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 #include <stdbool.h> 
 #include <time.h>
+#include <signal.h>
 
 #include "constants.h"
 #include "types.h"
@@ -22,10 +23,10 @@
 
 int check_permissions(tlv_request_t tlv_request);
 ret_code_t authenthicate_user(req_header_t req_header);
-ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id, uint32_t account_id, uint32_t op_delay);
+ret_code_t create_account(req_create_account_t req_create_account, int bank_office_id, uint32_t op_delay);
 ret_code_t balance_inquiry(req_header_t req_header, rep_balance_t *rep_balance, int bank_office_id);
 ret_code_t transfer(req_header_t req_header, req_transfer_t req_transfer, rep_transfer_t *rep_transfer, int bank_office_id);
-ret_code_t shutdown(rep_shutdown_t *rep_shutdown, int active_offices, int bank_office_id, uint32_t account_id, uint32_t op_delay);
+ret_code_t shutdown(rep_shutdown_t *rep_shutdown, int active_offices, int bank_office_id, int server_fifo, uint32_t op_delay);
 
 int getHash(char* password, char* salt, char* hash);
 void getSalt(char* salt);
